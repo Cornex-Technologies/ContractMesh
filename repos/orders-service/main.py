@@ -78,6 +78,7 @@ async def checkout(
             amount=request.amount,
             currency=request.currency,
             card_token=request.card_token,
+            token_id=TOKEN_ID,
         )
     else:
         raise HTTPException(

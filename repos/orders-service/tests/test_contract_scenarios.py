@@ -7,6 +7,7 @@ Executes real HTTP requests across sibling microservices via ASGI transport:
 """
 
 import importlib.util
+import json
 from pathlib import Path
 import httpx
 from httpx import ASGITransport
@@ -97,6 +98,7 @@ async def test_scenario_1_billing_v1_orders_v1_http_compatible():
             amount=4999,
             currency="usd",
             card_token="tok_visa_4242_test",
+            token_id="demo-token-id",
         )
 
         assert response["status"] == "succeeded"
@@ -127,6 +129,7 @@ async def test_scenario_2_billing_v2_orders_v1_http_drift_failure():
                 amount=4999,
                 currency="usd",
                 card_token="tok_visa_4242_test",
+                token_id="demo-token-id",
             )
 
         # Verify exact HTTP 422 Unprocessable Entity status code
@@ -171,3 +174,43 @@ async def test_scenario_3_billing_v2_orders_v2_http_reconciled():
         assert response["payment_method_id"] == "pm_card_visa_reconciled_999"
         assert response["description"] == "Order #4002 Reconciled Checkout"
         assert response["charge_id"].startswith("ch_v2_")
+
+
+@pytest.mark.asyncio
+async def test_billing_v1_request_contains_required_token_id():
+    """Orders v1 sends the required Billing token_id without changing checkout input."""
+    captured_payload = None
+
+    async def capture_request(request: httpx.Request) -> httpx.Response:
+        nonlocal captured_payload
+        captured_payload = json.loads(request.content)
+        return httpx.Response(
+            status_code=200,
+            json={
+                "charge_id": "ch_v1_payload_test",
+                "status": "succeeded",
+                "amount": captured_payload["amount"],
+                "currency": captured_payload["currency"],
+                "card_token": captured_payload["card_token"],
+            },
+            request=request,
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(capture_request),
+        base_url="http://billing-service.local",
+    ) as http_client:
+        client_v1 = BillingClientV1(client=http_client)
+        await client_v1.charge(
+            amount=4999,
+            currency="usd",
+            card_token="tok_visa_4242_test",
+            token_id="demo-token-id",
+        )
+
+    assert captured_payload == {
+        "amount": 4999,
+        "currency": "usd",
+        "card_token": "tok_visa_4242_test",
+        "token_id": "demo-token-id",
+    }
