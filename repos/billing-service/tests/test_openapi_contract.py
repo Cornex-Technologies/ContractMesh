@@ -19,7 +19,12 @@ app = _module.app
 
 def test_billing_v1_charge_operation_is_published_in_openapi() -> None:
     """The provider exposes the stable operation CodeClaim tracks."""
-    operation = app.openapi()["paths"]["/v1/charges"]["post"]
+    openapi = app.openapi()
+    operation = openapi["paths"]["/v1/charges"]["post"]
 
     assert operation["requestBody"]["content"]["application/json"]["schema"]
     assert operation["responses"]["200"]["content"]["application/json"]["schema"]
+
+    schema = openapi["components"]["schemas"]["ChargeRequest"]
+    assert "token_id" in schema.get("required", [])
+
