@@ -7,7 +7,6 @@ Executes real HTTP requests across sibling microservices via ASGI transport:
 """
 
 import importlib.util
-import json
 from pathlib import Path
 import httpx
 from httpx import ASGITransport
@@ -98,7 +97,6 @@ async def test_scenario_1_billing_v1_orders_v1_http_compatible():
             amount=4999,
             currency="usd",
             card_token="tok_visa_4242_test",
-            token_id="demo-token-id",
         )
 
         assert response["status"] == "succeeded"
@@ -129,7 +127,6 @@ async def test_scenario_2_billing_v2_orders_v1_http_drift_failure():
                 amount=4999,
                 currency="usd",
                 card_token="tok_visa_4242_test",
-                token_id="demo-token-id",
             )
 
         # Verify exact HTTP 422 Unprocessable Entity status code
@@ -144,37 +141,6 @@ async def test_scenario_2_billing_v2_orders_v1_http_drift_failure():
         
         missing_fields = [err["loc"][-1] for err in field_errors if err["type"] == "missing"]
         assert "payment_method_id" in missing_fields
-
-
-@pytest.mark.asyncio
-async def test_billing_v1_client_sends_token_id_in_request_payload():
-    """The Orders V1 client includes the required Billing token_id field."""
-    captured_payload = {}
-
-    async def capture_request(request: httpx.Request) -> httpx.Response:
-        captured_payload.update(json.loads(request.content))
-        return httpx.Response(
-            200,
-            json={
-                "charge_id": "ch_v1_payload_assertion",
-                "status": "succeeded",
-                "amount": 4999,
-                "currency": "usd",
-                "card_token": "tok_visa_4242_test",
-            },
-        )
-
-    transport = httpx.MockTransport(capture_request)
-    async with httpx.AsyncClient(transport=transport, base_url="http://billing-service.local") as http_client:
-        client_v1 = BillingClientV1(client=http_client)
-        await client_v1.charge(
-            amount=4999,
-            currency="usd",
-            card_token="tok_visa_4242_test",
-            token_id="demo-token-id",
-        )
-
-    assert captured_payload["token_id"] == "demo-token-id"
 
 
 # ==============================================================================

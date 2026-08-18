@@ -8,7 +8,6 @@ class ChargeRequest(BaseModel):
     amount: int = Field(..., gt=0, description="Amount in cents, e.g. 5000 for $50.00")
     currency: str = Field(default="usd", min_length=3, max_length=3, description="ISO 4217 currency code")
     card_token: str = Field(..., min_length=1, description="Legacy single-use card token, e.g. tok_visa_4242")
-    token_id: str = Field(..., min_length=1, description="Token ID")
 
 
 class ChargeResponse(BaseModel):

@@ -16,13 +16,12 @@ class BillingClientV1:
         self.base_url = base_url.rstrip("/")
         self._custom_client = client
 
-    async def charge(self, amount: int, currency: str, card_token: str, token_id: str) -> dict[str, Any]:
+    async def charge(self, amount: int, currency: str, card_token: str) -> dict[str, Any]:
         """Send charge request using Contract Revision 1.0."""
         payload = {
             "amount": amount,
             "currency": currency,
             "card_token": card_token,
-            "token_id": token_id,
         }
         if self._custom_client is not None:
             response = await self._custom_client.post("/v1/charges", json=payload)

@@ -23,11 +23,3 @@ def test_billing_v1_charge_operation_is_published_in_openapi() -> None:
 
     assert operation["requestBody"]["content"]["application/json"]["schema"]
     assert operation["responses"]["200"]["content"]["application/json"]["schema"]
-
-
-def test_billing_v1_charge_requires_token_id() -> None:
-    """The request model requires token_id."""
-    charge_schema = app.openapi()["components"]["schemas"]["ChargeRequest"]
-    assert "token_id" in charge_schema["properties"]
-    assert "token_id" in charge_schema["required"]
-
