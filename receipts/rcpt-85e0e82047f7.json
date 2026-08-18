@@ -1,0 +1,27 @@
+{
+  "receipt_id": "rcpt-85e0e82047f7",
+  "task_id": "726f4296-a534-4ed2-ad94-91f611617c75",
+  "timestamp": "2026-08-18T10:41:12.530312+00:00",
+  "source_service": "billing-service",
+  "target_service": "orders-service",
+  "from_version": 1,
+  "to_version": 2,
+  "breaking_diff": {
+    "breaking_changes": [
+      "amount type changed",
+      "idempotency_key added"
+    ]
+  },
+  "test_results": {
+    "all_passed": true,
+    "returncode": 0,
+    "test_suite": "C:\\Users\\dell\\Desktop\\Projects\\code-claim\\worktrees\\task-orders-f8d6e856-6112-4b6e-93b6-3137a9ce1f9a\\tests\\test_contract_scenarios.py",
+    "stdout": "============================= test session starts =============================\nplatform win32 -- Python 3.12.0, pytest-9.1.1, pluggy-1.6.0 -- C:\\Users\\dell\\Desktop\\Projects\\code-claim\\.venv\\Scripts\\python.exe\ncachedir: .pytest_cache\nrootdir: C:\\Users\\dell\\Desktop\\Projects\\code-claim\nconfigfile: pyproject.toml\nplugins: anyio-4.14.2, langsmith-0.11.0, asyncio-1.4.0\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollecting ... collected 3 items\n\ntests\\test_contract_scenarios.py::test_scenario_1_billing_v1_orders_v1_http_compatible PASSED [ 33%]\ntests\\test_contract_scenarios.py::test_scenario_2_billing_v2_orders_v1_http_drift_failure PASSED [ 66%]\ntests\\test_contract_scenarios.py::test_scenario_3_billing_v2_orders_v2_http_reconciled PASSED [100%]\n\n============================== 3 passed in 0.65s ==============================\n",
+    "stderr": ""
+  },
+  "approved_by": "lead-architect@codeclaim.internal",
+  "deployment_version": 11,
+  "source_commit": "5d8402a11402888b9cd20b53ad5cc5f7b375e615",
+  "receipt_sha256": "75adf30e5653b3a4c04e5c3b4d5e7cd2a269003b7ca36a658c09058dd0d9b753",
+  "receipt_signature": "1299009b5511d00e2921a99316f5203c6c7758367b3aa699a73fae2eb4a32aff"
+}

@@ -1,0 +1,22 @@
+{
+  "receipt_id": "rcpt-6fc6384130c1",
+  "task_id": "deploy-1cb37a30-fc66-42fb-8571-106b9aef8245",
+  "timestamp": "2026-08-18T11:05:26.567378+00:00",
+  "source_service": "billing-service",
+  "target_service": "billing-service",
+  "from_version": 15,
+  "to_version": 16,
+  "breaking_diff": {
+    "status": "HEALTHY",
+    "source_commit": "ab7e39cf6a74ed6f2e7aa4e081a8f2540c90d5dc"
+  },
+  "test_results": {
+    "all_passed": true,
+    "returncode": 0
+  },
+  "approved_by": "deployment-supervisor",
+  "deployment_version": 16,
+  "source_commit": "ab7e39cf6a74ed6f2e7aa4e081a8f2540c90d5dc",
+  "receipt_sha256": "b4836101d3f5d5b441ae3d02e8b7d1f090e72e70bea11226eb59486bfa1ad2b4",
+  "receipt_signature": "959ebd00e191cdcf5d4ba5aec8e7067e5efb46e313adb8420b746acb1112e75b"
+}

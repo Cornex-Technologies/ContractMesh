@@ -1,0 +1,22 @@
+{
+  "receipt_id": "rcpt-c542800b0327",
+  "task_id": "deploy-dep-existing-live-2",
+  "timestamp": "2026-08-18T17:49:30.887663+00:00",
+  "source_service": "orders-service",
+  "target_service": "orders-service",
+  "from_version": 1,
+  "to_version": 2,
+  "breaking_diff": {
+    "status": "HEALTHY",
+    "source_commit": "commit-valid-2"
+  },
+  "test_results": {
+    "all_passed": true,
+    "returncode": 0
+  },
+  "approved_by": "deployment-supervisor",
+  "deployment_version": 2,
+  "source_commit": "commit-valid-2",
+  "receipt_sha256": "ad55e49bac223c32ffbd2d4dfed1089cddc0533080c441980b9495a4bd07127f",
+  "receipt_signature": "a50262768682a36a9d880a9316aa42b1e3eb3b54e539541cd4f6d2b7eb640cc9"
+}

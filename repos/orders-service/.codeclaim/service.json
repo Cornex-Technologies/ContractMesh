@@ -1,0 +1,12 @@
+{
+  "application_entrypoint": "main:app",
+  "contract_source": {
+    "app_entry": "main:app",
+    "openapi_url": null
+  },
+  "endpoint_code_dir": ".",
+  "framework": "fastapi",
+  "review_required": [],
+  "service_name": "orders-service",
+  "version": 1
+}

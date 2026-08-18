@@ -1,0 +1,422 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap");
+
+:root {
+  font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f5f7fb;
+  background: #08090d;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --background: #08090d;
+  --foreground: #f5f7fb;
+  --card: #11141b;
+  --card-hover: #151922;
+  --muted: #191d27;
+  --muted-foreground: #8992a5;
+  --border: rgba(161, 174, 197, 0.15);
+  --border-strong: rgba(161, 174, 197, 0.27);
+  --primary: #f6f8fb;
+  --primary-foreground: #0c0e12;
+  --blue: #6aa7ff;
+  --green: #28d39a;
+  --amber: #f0b85b;
+  --red: #ff6f7d;
+  --purple: #bf91ff;
+  --radius: 13px;
+  --mono: "DM Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--background); }
+button, input, textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+.react-dashboard {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(44, 111, 203, 0.11), transparent 29rem),
+    radial-gradient(circle at 94% 12%, rgba(119, 72, 210, 0.08), transparent 25rem),
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px),
+    var(--background);
+  background-size: auto, auto, 36px 36px, 36px 36px, auto;
+}
+
+.react-topbar {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: grid;
+  grid-template-columns: minmax(255px, 1fr) auto minmax(350px, 1fr);
+  align-items: center;
+  gap: 24px;
+  min-height: 74px;
+  padding: 11px 30px;
+  background: rgba(8, 9, 13, 0.88);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+}
+
+.react-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.react-brand-mark {
+  display: grid; place-items: center; flex: 0 0 auto; width: 38px; height: 38px;
+  border-radius: 11px; color: #081019; font-size: 13px; font-weight: 800;
+  background: linear-gradient(145deg, #24d1ad, #4c93ff); box-shadow: 0 0 25px rgba(54, 185, 219, 0.3);
+}
+.react-eyebrow { color: #68748c; font-family: var(--mono); font-size: 9px; letter-spacing: 0.13em; text-transform: uppercase; }
+.react-brand-name { margin-top: 2px; color: #f7f9fc; font-size: 16px; font-weight: 800; letter-spacing: -0.03em; }
+.react-brand-name span { color: #9da9bc; font-weight: 500; }
+.react-brand-subtitle { margin-top: 2px; color: #778399; font-size: 10px; }
+
+.react-nav { display: flex; align-items: center; gap: 3px; }
+.react-nav-item {
+  display: inline-flex; align-items: center; gap: 7px; border: 1px solid transparent; border-radius: 8px;
+  padding: 8px 10px; color: #8993a5; background: transparent; font-size: 11px; transition: 160ms ease;
+}
+.react-nav-item:hover { color: #e7ebf2; background: rgba(255,255,255,0.045); }
+.react-nav-item.is-active { color: #eef4ff; border-color: rgba(106, 167, 255, 0.22); background: rgba(106, 167, 255, 0.1); }
+
+.react-top-actions { display: flex; justify-content: flex-end; align-items: center; gap: 9px; min-width: 0; }
+.react-status-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid rgba(40, 211, 154, 0.26); border-radius: 999px; color: #62e5b9; background: rgba(40,211,154,0.08); font-size: 10px; white-space: nowrap; }
+.react-status-pill.is-error { color: #ff9da6; border-color: rgba(255,111,125,0.35); background: rgba(255,111,125,0.09); }
+.react-status-pill.is-loading { color: #e4b96b; border-color: rgba(240,184,91,0.3); background: rgba(240,184,91,0.08); }
+.react-pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 11px currentColor; }
+.react-switch-label { display: inline-flex; align-items: center; gap: 6px; color: #8b95a8; font-size: 10px; white-space: nowrap; }
+.react-switch-label input { accent-color: var(--blue); }
+
+.cc-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid transparent; border-radius: 8px; font-weight: 700; transition: 160ms ease; }
+.cc-button:hover:not(:disabled) { transform: translateY(-1px); }
+.cc-button-md { min-height: 36px; padding: 0 14px; font-size: 11px; }
+.cc-button-sm { min-height: 30px; padding: 0 10px; font-size: 10px; }
+.cc-button-icon { width: 32px; height: 32px; padding: 0; font-size: 16px; }
+.cc-button-primary { color: #07111e; border-color: #6aa7ff; background: #6aa7ff; box-shadow: 0 5px 18px rgba(78, 142, 230, 0.2); }
+.cc-button-success { color: #071813; border-color: #28d39a; background: #28d39a; }
+.cc-button-danger { color: #fff3f5; border-color: rgba(255,111,125,0.42); background: rgba(178, 49, 68, 0.78); }
+.cc-button-ghost { color: #bcc6d7; border-color: var(--border); background: rgba(255,255,255,0.035); }
+.cc-button-ghost:hover:not(:disabled) { border-color: var(--border-strong); background: rgba(255,255,255,0.08); }
+.cc-button-outline { color: #b9c7db; border-color: var(--border-strong); background: transparent; }
+
+.cc-badge { display: inline-flex; align-items: center; width: fit-content; border: 1px solid transparent; border-radius: 999px; padding: 4px 8px; font-family: var(--mono); font-size: 9px; line-height: 1; letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap; }
+.cc-badge-green { color: #57e4b2; border-color: rgba(40,211,154,0.25); background: rgba(40,211,154,0.09); }
+.cc-badge-red { color: #ff9da6; border-color: rgba(255,111,125,0.28); background: rgba(255,111,125,0.1); }
+.cc-badge-amber { color: #f3c16e; border-color: rgba(240,184,91,0.3); background: rgba(240,184,91,0.1); }
+.cc-badge-blue { color: #8ab9ff; border-color: rgba(106,167,255,0.28); background: rgba(106,167,255,0.1); }
+.cc-badge-purple { color: #cba8ff; border-color: rgba(191,145,255,0.3); background: rgba(191,145,255,0.1); }
+.cc-badge-slate { color: #a5afc0; border-color: var(--border); background: rgba(255,255,255,0.045); }
+
+.react-system-banner { display: flex; align-items: center; gap: 10px; min-height: 43px; padding: 0 30px; color: #ffb2b9; border-bottom: 1px solid rgba(255,111,125,0.31); background: rgba(115, 26, 41, 0.4); font-size: 12px; }
+.react-system-banner span { flex: 1; }
+
+.react-workspace { width: min(1900px, 100%); margin: 0 auto; padding: 30px 30px 70px; }
+.react-hero-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; margin-bottom: 22px; }
+.react-hero-row h1 { margin: 5px 0 7px; color: #f8faff; font-size: clamp(25px, 3vw, 38px); letter-spacing: -0.055em; line-height: 1.05; }
+.react-hero-row p { max-width: 640px; margin: 0; color: #8792a6; font-size: 12px; line-height: 1.7; }
+.react-hero-meta { min-width: 215px; padding: 12px 14px; border-left: 1px solid var(--border-strong); color: #aab5c7; font-size: 11px; }
+.react-meta-label { margin-bottom: 5px; color: #657087; font-family: var(--mono); font-size: 9px; letter-spacing: 0.09em; text-transform: uppercase; }
+.react-hero-meta strong { display: block; color: #edf1f8; font-size: 12px; }
+.react-hero-meta span { display: flex; align-items: center; gap: 5px; margin-top: 6px; color: #52d7aa; font-size: 10px; }
+
+.react-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+.react-metric-card { min-height: 97px; padding: 15px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: rgba(17,20,27,0.83); box-shadow: 0 12px 35px rgba(0,0,0,0.12); }
+.react-metric-label { display: flex; align-items: center; gap: 6px; color: #8792a5; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
+.react-metric-card strong { display: block; margin-top: 9px; color: #f2f5fa; font-size: 24px; letter-spacing: -0.05em; }
+.react-metric-card > span:last-child { display: block; margin-top: 2px; color: #748097; font-size: 10px; }
+.metric-dot { width: 6px; height: 6px; border-radius: 50%; }
+.metric-dot-green { background: var(--green); box-shadow: 0 0 9px var(--green); }
+.metric-dot-blue { background: var(--blue); box-shadow: 0 0 9px var(--blue); }
+.metric-dot-amber { background: var(--amber); box-shadow: 0 0 9px var(--amber); }
+.metric-dot-purple { background: var(--purple); box-shadow: 0 0 9px var(--purple); }
+
+.react-graph-section { margin-bottom: 18px; }
+.react-agent-graph-shell { min-width: 0; }
+.react-agent-graph-filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 9px; margin-bottom: 13px; padding: 10px; border: 1px solid rgba(161,174,197,.12); border-radius: 9px; background: rgba(255,255,255,.025); }
+.react-agent-graph-filters label { display: grid; gap: 5px; min-width: 150px; color: #738198; font-family: var(--mono); font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.react-agent-graph-filters select { min-height: 31px; max-width: 250px; border: 1px solid var(--border); border-radius: 7px; padding: 0 25px 0 8px; color: #dfe7f2; background: #0a0d12; font-family: var(--mono); font-size: 9px; color-scheme: dark; }
+.react-graph-clear { min-height: 31px; padding: 0 9px; border: 1px solid rgba(106,167,255,.25); border-radius: 7px; color: #91baff; background: rgba(106,167,255,.07); font-family: var(--mono); font-size: 8px; text-transform: uppercase; letter-spacing: .05em; }
+.react-graph-clear:hover, .react-graph-clear:focus-visible { border-color: var(--blue); outline: none; }
+.react-agent-graph-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.react-graph-legend { display: flex; flex-wrap: wrap; gap: 12px; color: #8390a5; font-family: var(--mono); font-size: 8px; text-transform: uppercase; letter-spacing: .06em; }
+.react-graph-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.react-graph-legend-dot { display: inline-block; width: 8px; height: 8px; flex: 0 0 auto; border: 1px solid currentColor; border-radius: 50%; }
+.react-graph-legend-dot.is-active { color: var(--blue); background: var(--blue); box-shadow: 0 0 9px rgba(106,167,255,.7); }
+.react-graph-legend-dot.is-ghost { color: var(--purple); background: rgba(191,145,255,.22); }
+.react-graph-legend-line { display: inline-block; width: 21px; height: 1px; background: var(--blue); box-shadow: 0 0 7px rgba(106,167,255,.6); }
+.react-graph-count { color: #6f7d95; font-family: var(--mono); font-size: 9px; white-space: nowrap; }
+.react-agent-graph { position: relative; overflow: hidden; min-height: 260px; border: 1px solid rgba(106,167,255,.17); border-radius: 11px; background: radial-gradient(circle at 50% 50%, rgba(106,167,255,.06), transparent 45%), rgba(7,10,16,.78); }
+.react-agent-graph::before, .react-agent-graph::after { position: absolute; top: 0; bottom: 0; width: 1px; content: ""; background: linear-gradient(transparent, rgba(106,167,255,.14), transparent); pointer-events: none; }
+.react-agent-graph::before { left: 22%; }
+.react-agent-graph::after { right: 22%; }
+.react-agent-graph-edges { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.react-agent-graph-edge { fill: none; stroke: rgba(106,167,255,.58); stroke-width: .45; vector-effect: non-scaling-stroke; marker-end: url(#agent-graph-arrow); }
+.react-agent-graph-edge + .react-agent-graph-edge { stroke: rgba(191,145,255,.48); }
+.react-agent-graph-edges marker path { fill: var(--blue); }
+.react-agent-graph-node { position: absolute; z-index: 2; display: flex; align-items: center; gap: 8px; width: min(260px, 34%); min-height: 43px; padding: 6px 9px; border: 1px solid rgba(106,167,255,.25); border-radius: 9px; color: inherit; text-align: left; background: rgba(16,22,34,.94); box-shadow: 0 10px 24px rgba(0,0,0,.2); transform: translate(-50%, -50%); transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.react-agent-graph-node:hover, .react-agent-graph-node:focus-visible, .react-agent-graph-node.is-hovered { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(106,167,255,.1), 0 12px 30px rgba(0,0,0,.3); outline: none; transform: translate(-50%, -50%) scale(1.02); }
+.react-agent-graph-node.is-warning { border-color: rgba(240,184,91,.48); }
+.react-agent-graph-node.is-approval { border-color: rgba(191,145,255,.48); }
+.react-agent-graph-node.is-ghost { border-style: dashed; border-color: rgba(191,145,255,.48); background: rgba(26,20,40,.82); }
+.react-agent-graph-dot { display: grid; place-items: center; width: 27px; height: 27px; flex: 0 0 auto; border: 1px solid currentColor; border-radius: 50%; color: var(--blue); background: rgba(106,167,255,.12); }
+.react-agent-graph-node.is-warning .react-agent-graph-dot { color: var(--amber); background: rgba(240,184,91,.1); }
+.react-agent-graph-node.is-approval .react-agent-graph-dot { color: var(--purple); background: rgba(191,145,255,.1); }
+.react-agent-graph-node.is-ghost .react-agent-graph-dot { color: var(--purple); background: rgba(191,145,255,.1); }
+.react-agent-graph-node-copy { display: grid; min-width: 0; gap: 4px; }
+.react-agent-graph-node-copy strong { overflow: hidden; color: #e1eaf6; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.react-agent-graph-node-copy small { overflow: hidden; color: #8b9ab0; font-family: var(--mono); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.react-agent-graph-tooltip { position: absolute; z-index: 4; top: 13px; left: 50%; display: grid; width: min(270px, calc(100% - 28px)); gap: 5px; padding: 11px 12px; border: 1px solid rgba(106,167,255,.4); border-radius: 9px; background: rgba(9,13,21,.97); box-shadow: 0 16px 35px rgba(0,0,0,.42); transform: translateX(-50%); pointer-events: none; }
+.react-agent-graph-tooltip strong { color: #eff5fd; font-size: 11px; }
+.react-agent-graph-tooltip > span { color: #9ba9bc; font-family: var(--mono); font-size: 8px; line-height: 1.4; }
+.react-graph-caption { margin: 10px 0 0; color: #728097; font-size: 9px; line-height: 1.5; }
+
+.react-dashboard-grid { display: grid; grid-template-columns: minmax(270px, 0.88fr) minmax(400px, 1.2fr) minmax(300px, 0.98fr); align-items: start; gap: 12px; }
+.react-column { min-width: 0; display: flex; flex-direction: column; gap: 12px; scroll-margin-top: 92px; }
+.cc-card { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius); background: rgba(16,19,26,0.89); box-shadow: 0 14px 36px rgba(0,0,0,0.13); }
+.cc-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 17px 14px; border-bottom: 1px solid rgba(161,174,197,0.1); }
+.cc-card-content { padding: 14px 17px 17px; }
+.cc-card-title { margin: 0; color: #edf2f8; font-size: 13px; font-weight: 800; letter-spacing: -0.025em; }
+.cc-card-description { margin: 4px 0 0; color: #758196; font-size: 10px; }
+.react-panel-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.react-panel-icon { display: grid; place-items: center; width: 29px; height: 29px; flex: 0 0 auto; border: 1px solid currentColor; border-radius: 8px; }
+.tone-blue { color: var(--blue); background: rgba(106,167,255,0.09); }
+.tone-green { color: var(--green); background: rgba(40,211,154,0.08); }
+.tone-red { color: var(--red); background: rgba(255,111,125,0.08); }
+.tone-purple { color: var(--purple); background: rgba(191,145,255,0.08); }
+.react-panel-tall { min-height: 740px; }
+
+.react-trigger-box { padding: 13px; border: 1px solid rgba(40,211,154,0.27); border-radius: 11px; background: linear-gradient(135deg, rgba(40,211,154,0.1), rgba(106,167,255,0.04)); }
+.react-trigger-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+.react-microcopy { margin: 9px 0 0; color: #758196; font-size: 10px; line-height: 1.55; }
+.react-section-block { margin-top: 19px; }
+.react-section-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; color: #d7dfea; font-size: 11px; font-weight: 800; }
+.react-section-label > span { display: flex; align-items: center; gap: 6px; }
+.react-section-label > span svg { color: #7e8ba1; }
+.react-section-label small { color: #6e7a90; font-family: var(--mono); font-size: 9px; font-weight: 400; }
+.react-list { display: flex; flex-direction: column; gap: 4px; }
+.react-list-row { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 10px 9px; border: 1px solid transparent; border-radius: 9px; background: rgba(255,255,255,0.025); }
+.react-list-row:hover { border-color: var(--border); background: rgba(255,255,255,0.045); }
+.react-row-icon { display: grid; place-items: center; width: 27px; height: 27px; flex: 0 0 auto; color: #91a0b7; border: 1px solid var(--border); border-radius: 7px; background: rgba(255,255,255,0.035); }
+.react-row-main { min-width: 0; flex: 1; }
+.react-row-main strong { display: flex; align-items: center; gap: 4px; overflow: hidden; color: #dce4ef; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.react-row-main span { display: block; overflow: hidden; margin-top: 3px; color: #778398; font-family: var(--mono); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.react-empty-state { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 61px; color: #68758a; font-size: 10px; text-align: center; }
+.react-empty-state svg { color: #546177; }
+
+.react-search-box { margin-top: 21px; padding-top: 15px; border-top: 1px solid var(--border); }
+.react-section-kicker { display: flex; align-items: center; gap: 6px; color: #c6a3ff; font-family: var(--mono); font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; }
+.react-search-form { display: flex; align-items: center; gap: 7px; margin-top: 9px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: #0a0d12; }
+.react-search-form svg { color: #6e7c92; flex: 0 0 auto; }
+.react-search-form input { width: 100%; min-width: 0; height: 33px; border: 0; outline: 0; color: #e4ebf5; background: transparent; font-size: 10px; }
+.react-search-form input::placeholder { color: #5d697d; }
+.react-search-form button { display: grid; place-items: center; width: 25px; height: 25px; border: 0; border-radius: 6px; color: #abbfff; background: rgba(106,167,255,0.1); }
+.react-search-results { margin-top: 8px; }
+.react-search-result { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(161,174,197,0.08); }
+.react-search-result strong, .react-search-result span { display: block; }
+.react-search-result strong { color: #d8e1ef; font-size: 10px; }
+.react-search-result span { margin-top: 3px; color: #728097; font-family: var(--mono); font-size: 9px; }
+.react-search-skeleton { margin-top: 10px; height: 27px; }
+
+.react-boundary-callout { display: flex; gap: 11px; padding: 13px; border: 1px solid rgba(106,167,255,0.26); border-radius: 11px; background: linear-gradient(135deg, rgba(106,167,255,0.1), rgba(191,145,255,0.035)); }
+.react-callout-icon { display: grid; place-items: center; width: 31px; height: 31px; flex: 0 0 auto; color: #92bbff; border: 1px solid rgba(106,167,255,0.32); border-radius: 8px; background: rgba(106,167,255,0.1); }
+.react-boundary-callout strong { color: #e7effc; font-size: 11px; }
+.react-boundary-callout p { margin: 5px 0 0; color: #94a1b5; font-size: 10px; line-height: 1.55; }
+.react-task-row { padding: 13px 0; border-bottom: 1px solid rgba(161,174,197,0.1); }
+.react-task-row:last-child { border-bottom: 0; }
+.react-task-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.react-task-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.react-avatar { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 auto; color: #c19bff; border: 1px solid rgba(191,145,255,0.25); border-radius: 8px; background: rgba(191,145,255,0.1); }
+.react-task-title strong, .react-task-title span { display: block; }
+.react-task-title strong { color: #e6ecf5; font-size: 11px; }
+.react-task-title span { margin-top: 3px; color: #778398; font-family: var(--mono); font-size: 9px; }
+.react-task-summary { margin: 10px 0 8px; color: #cdd6e4; font-size: 11px; line-height: 1.45; }
+.react-chip-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.react-chip { padding: 4px 7px; border: 1px solid rgba(106,167,255,0.2); border-radius: 5px; color: #8ab9ff; background: rgba(106,167,255,0.08); font-family: var(--mono); font-size: 9px; }
+.react-task-meta { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 9px; color: #78859a; font-family: var(--mono); font-size: 9px; }
+.react-task-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.tone-icon-green { color: var(--green); }
+.tone-icon-red { color: var(--red); }
+.tone-icon-slate { color: #718097; }
+.react-task-actions { display: flex; gap: 7px; margin-top: 11px; }
+.react-incident-block { margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,111,125,0.18); }
+.react-incident-row { padding: 10px; border: 1px solid rgba(255,111,125,0.2); border-radius: 8px; background: rgba(255,111,125,0.055); }
+.react-incident-title { display: flex; align-items: center; gap: 6px; color: #ffabb3; font-size: 10px; }
+.react-incident-row p { margin: 6px 0 8px; color: #b5a2a8; font-size: 10px; line-height: 1.4; }
+
+.react-diff-viewer { overflow: hidden; border: 1px solid rgba(255,111,125,0.2); border-radius: 9px; background: rgba(10,12,18,0.8); }
+.react-diff-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px; color: #ffafb7; font-size: 10px; }
+.react-diff-title span { color: #7d899c; font-family: var(--mono); }
+.react-diff-line { padding: 7px 11px; color: #ff9da6; border-top: 1px solid rgba(255,111,125,0.09); font-family: var(--mono); font-size: 9px; line-height: 1.45; }
+.react-diff-line.is-added { color: #6de1b8; }
+.react-diff-viewer pre { max-height: 180px; overflow: auto; margin: 0; padding: 10px; color: #9ba9bb; font-family: var(--mono); font-size: 9px; white-space: pre-wrap; }
+.react-diff-footer { display: flex; align-items: center; justify-content: space-between; padding: 8px 11px; color: #748096; font-family: var(--mono); font-size: 9px; border-top: 1px solid rgba(255,111,125,0.09); }
+.react-feed { max-height: 220px; }
+.react-feed-row { padding: 10px 0; border-bottom: 1px solid rgba(161,174,197,0.1); }
+.react-feed-row:last-child { border-bottom: 0; }
+.react-feed-row.is-danger { padding-left: 9px; border-left: 2px solid var(--red); }
+.react-feed-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.react-feed-top strong { color: #dbe4ef; font-family: var(--mono); font-size: 9px; }
+.react-feed-top > span { color: #768298; font-family: var(--mono); font-size: 9px; }
+.react-feed-row p { margin: 5px 0 0; color: #95a1b4; font-size: 10px; line-height: 1.45; }
+.react-feed-row > span { display: block; margin-top: 5px; color: #657187; font-family: var(--mono); font-size: 8px; }
+
+.cc-dialog-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,0.72); backdrop-filter: blur(8px); }
+.cc-dialog { width: min(460px, 100%); border: 1px solid var(--border-strong); border-radius: 14px; background: #11141b; box-shadow: 0 25px 90px rgba(0,0,0,0.45); }
+.cc-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; padding: 18px; border-bottom: 1px solid var(--border); }
+.cc-dialog-header h2 { margin: 0; color: #f3f6fa; font-size: 15px; }
+.cc-dialog-header p { margin: 6px 0 0; color: #8792a5; font-size: 10px; line-height: 1.5; }
+.react-dialog-body { padding: 18px; }
+.react-dialog-body label { display: block; margin-bottom: 7px; color: #bfc9d8; font-size: 11px; font-weight: 700; }
+.react-dialog-body input, .react-dialog-body textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px; outline: 0; color: #edf2f8; background: #0a0d12; font-size: 11px; resize: vertical; }
+.react-auth-note { margin: 10px 0 0; color: #8491a6; font-size: 10px; line-height: 1.55; }
+.react-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+.react-toast-viewport { position: fixed; z-index: 60; right: 22px; bottom: 22px; display: flex; flex-direction: column; gap: 8px; width: min(360px, calc(100vw - 44px)); }
+.react-toast { display: flex; align-items: flex-start; gap: 8px; padding: 11px 13px; border: 1px solid var(--border-strong); border-radius: 9px; color: #dbe5f2; background: #161b24; box-shadow: 0 15px 35px rgba(0,0,0,0.3); font-size: 10px; animation: toast-in 180ms ease-out; }
+.react-toast.is-success { color: #9af2d2; border-color: rgba(40,211,154,0.25); }
+.react-toast.is-error { color: #ffb0b8; border-color: rgba(255,111,125,0.3); }
+.cc-separator { height: 1px; background: var(--border); }
+.cc-scroll-area { overflow: auto; scrollbar-color: #354055 transparent; scrollbar-width: thin; }
+.cc-skeleton { overflow: hidden; position: relative; border-radius: 6px; background: rgba(255,255,255,0.07); }
+.cc-skeleton::after { position: absolute; inset: 0; content: ""; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); animation: skeleton 1.5s infinite; }
+.spin { animation: spin 900ms linear infinite; }
+
+.react-home-grid { grid-template-columns: minmax(320px, .78fr) minmax(0, 1.72fr); }
+.react-graph-column { min-width: 0; }
+.react-page-workspace { width: min(1800px, 100%); }
+.react-page-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+.react-page-hero h1 { margin: 6px 0 8px; color: #f8faff; font-size: clamp(28px, 4vw, 48px); letter-spacing: -0.06em; line-height: 1; }
+.react-page-hero p { max-width: 760px; margin: 0; color: #8792a6; font-size: 12px; line-height: 1.65; }
+.react-page-hero-count { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 9px; min-width: 130px; padding: 13px 15px; border-left: 1px solid var(--border-strong); color: var(--purple); }
+.react-page-hero-count strong { color: #edf1f8; font-size: 24px; line-height: 1; }
+.react-page-hero-count span { grid-column: 2; margin-top: 4px; color: #758196; font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
+.react-filter-bar { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 18px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: rgba(17,20,27,.78); }
+.react-filter-title { display: inline-flex; align-items: center; gap: 7px; align-self: center; margin-right: auto; color: #cad4e2; font-size: 11px; font-weight: 800; }
+.react-filter-title svg { color: var(--blue); }
+.react-filter-bar label { display: grid; gap: 5px; color: #748097; font-family: var(--mono); font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.react-filter-bar input { min-height: 31px; border: 1px solid var(--border); border-radius: 7px; padding: 0 8px; color: #dfe7f2; background: #0a0d12; font-family: var(--mono); font-size: 10px; color-scheme: dark; }
+.react-full-widget-list { display: flex; flex-direction: column; gap: 10px; }
+.react-full-width-widget { position: relative; display: grid; grid-template-columns: minmax(300px, 1.45fr) minmax(145px, .6fr) minmax(145px, .6fr) auto auto; align-items: center; gap: 18px; min-width: 0; padding: 17px 19px; border: 1px solid var(--border); border-radius: 13px; background: linear-gradient(120deg, rgba(17,20,27,.96), rgba(14,18,27,.84)); box-shadow: 0 13px 32px rgba(0,0,0,.12); cursor: pointer; transition: border-color 160ms ease, transform 160ms ease, background 160ms ease; }
+.react-full-width-widget:hover, .react-full-width-widget:focus-visible { border-color: rgba(106,167,255,.46); background: linear-gradient(120deg, rgba(24,30,43,.98), rgba(16,20,31,.92)); transform: translateY(-1px); outline: none; }
+.react-full-widget-leading { display: flex; align-items: flex-start; gap: 11px; min-width: 0; }
+.react-full-widget-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border: 1px solid currentColor; border-radius: 9px; }
+.react-full-widget-leading h2 { overflow: hidden; margin: 4px 0 5px; color: #edf3fc; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.react-full-widget-leading p { overflow: hidden; margin: 0; color: #7f8ba0; font-family: var(--mono); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.react-widget-kicker { color: #73819a; font-family: var(--mono); font-size: 8px; letter-spacing: .1em; text-transform: uppercase; }
+.react-full-widget-middle { display: grid; gap: 4px; min-width: 0; padding-left: 15px; border-left: 1px solid var(--border); }
+.react-full-widget-middle span, .react-diff-revisions span, .react-diff-change-summary span { color: #6e7b91; font-family: var(--mono); font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.react-full-widget-middle strong, .react-diff-revisions strong, .react-diff-change-summary strong { overflow: hidden; color: #dce6f3; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.react-full-widget-middle small, .react-diff-revisions small, .react-diff-change-summary small { overflow: hidden; color: #768399; font-family: var(--mono); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.react-full-widget-status { display: grid; justify-items: end; gap: 6px; min-width: 76px; color: #738099; font-family: var(--mono); font-size: 8px; white-space: nowrap; }
+.react-full-widget-chevron { color: #617089; }
+.react-widget-events { grid-column: 1 / -1; display: grid; gap: 4px; margin: 3px 0 -3px 45px; padding-top: 12px; border-top: 1px solid rgba(161,174,197,.1); }
+.react-widget-events-label { color: #728099; font-family: var(--mono); font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.react-detail-event-list { display: grid; gap: 4px; }
+.react-detail-event { display: flex; align-items: center; gap: 9px; width: 100%; min-width: 0; padding: 8px; border: 1px solid transparent; border-radius: 8px; color: inherit; text-align: left; background: rgba(255,255,255,.025); cursor: pointer; }
+.react-detail-event:hover, .react-detail-event:focus-visible { border-color: rgba(106,167,255,.32); background: rgba(106,167,255,.07); outline: none; }
+.react-detail-event-icon { display: grid; place-items: center; width: 25px; height: 25px; flex: 0 0 auto; color: var(--purple); border: 1px solid rgba(191,145,255,.25); border-radius: 6px; }
+.react-detail-event-main { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.react-detail-event-main strong { overflow: hidden; color: #dce5f1; font-family: var(--mono); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.react-detail-event-main span { overflow: hidden; color: #8290a6; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.react-detail-event-meta { color: #6e7d95; font-family: var(--mono); font-size: 8px; line-height: 1.5; text-align: right; }
+.react-obligation-dialog { max-height: min(72vh, 650px); overflow: auto; padding: 17px 18px 18px; }
+.react-dialog-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; }
+.react-dialog-summary-grid > div { display: grid; gap: 5px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,.025); }
+.react-dialog-summary-grid span { color: #738198; font-family: var(--mono); font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.react-dialog-summary-grid strong { overflow: hidden; color: #dde6f2; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.react-detail-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.react-detail-section-title { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; color: #d6e0ec; font-size: 11px; font-weight: 800; }
+.react-detail-section-title svg { color: var(--blue); }
+.react-detail-section-title small { margin-left: auto; color: #75839a; font-family: var(--mono); font-size: 9px; font-weight: 400; }
+.react-detail-task { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,.025); }
+.react-detail-task strong, .react-detail-task span, .react-detail-task p { display: block; }
+.react-detail-task strong { color: #e7eef8; font-family: var(--mono); font-size: 10px; }
+.react-detail-task span { margin-top: 3px; color: #7d8aa0; font-family: var(--mono); font-size: 8px; }
+.react-detail-task p { margin: 7px 0 0; color: #aebbd0; font-size: 10px; }
+.react-detail-scroll { max-height: 150px; }
+.react-detail-line { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; color: #aebbd0; border-bottom: 1px solid rgba(161,174,197,.09); font-family: var(--mono); font-size: 9px; }
+.react-detail-line time { color: #748198; }
+.react-diff-widget { grid-template-columns: minmax(300px, 1.3fr) minmax(170px, .7fr) minmax(190px, .9fr) auto auto; }
+.react-diff-revisions, .react-diff-change-summary { display: grid; gap: 4px; min-width: 0; padding-left: 15px; border-left: 1px solid var(--border); }
+.react-diff-change-summary small { white-space: normal; line-height: 1.4; }
+.react-page-loading { display: grid; gap: 10px; }
+.react-page-skeleton { height: 105px; border: 1px solid var(--border); border-radius: 13px; }
+.react-page-error { display: flex; align-items: center; gap: 8px; padding: 15px; color: #ffabb4; border: 1px solid rgba(255,111,125,.25); border-radius: 10px; background: rgba(255,111,125,.07); font-size: 11px; }
+.react-json-dialog-body { max-height: min(78vh, 760px); overflow: auto; padding: 17px 18px 18px; }
+.react-json-skeleton { min-height: 300px; }
+.react-json-viewer { overflow: auto; max-height: 60vh; margin: 0; padding: 13px; border: 1px solid var(--border); border-radius: 9px; color: #c9d5e5; background: #080a0f; font-family: var(--mono); font-size: 9px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+.react-audit-groups { display: grid; gap: 12px; }
+.react-audit-group { overflow: hidden; border: 1px solid var(--border); border-radius: 13px; background: rgba(16,19,26,.9); }
+.react-audit-group-header { display: flex; justify-content: space-between; gap: 15px; padding: 15px 18px; border-bottom: 1px solid var(--border); }
+.react-audit-group-header h2 { margin: 5px 0 0; color: #e6edf7; font-size: 13px; }
+.react-audit-group-header > span { color: #76849a; font-family: var(--mono); font-size: 9px; }
+.react-audit-timeline { padding: 6px 18px 9px; }
+.react-audit-timeline-row { display: grid; grid-template-columns: 28px minmax(0,1fr) 31px; align-items: center; gap: 10px; min-height: 67px; border-bottom: 1px solid rgba(161,174,197,.09); }
+.react-audit-timeline-row:last-child { border-bottom: 0; }
+.react-audit-node { position: relative; display: grid; place-items: center; width: 27px; height: 27px; border: 1px solid currentColor; border-radius: 8px; }
+.react-audit-node.is-audit { color: var(--green); background: rgba(40,211,154,.08); }
+.react-audit-node.is-outbox { color: var(--purple); background: rgba(191,145,255,.08); }
+.react-audit-node::after { position: absolute; top: 27px; left: 12px; width: 1px; height: 38px; content: ""; background: var(--border-strong); }
+.react-audit-timeline-row:last-child .react-audit-node::after { display: none; }
+.react-audit-record { min-width: 0; }
+.react-audit-record p { overflow: hidden; margin: 5px 0 3px; color: #9eacc0; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.react-audit-record > span { color: #6f7d94; font-family: var(--mono); font-size: 8px; }
+.react-audit-inspect { display: grid; place-items: center; width: 29px; height: 29px; border: 1px solid var(--border); border-radius: 7px; color: #9bb8e9; background: rgba(106,167,255,.07); cursor: pointer; }
+.react-audit-inspect:hover, .react-audit-inspect:focus-visible { border-color: var(--blue); outline: none; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes skeleton { to { transform: translateX(100%); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 1370px) {
+  .react-topbar { grid-template-columns: minmax(240px, 1fr) auto; }
+  .react-nav { display: flex; grid-column: 1 / -1; grid-row: 2; justify-content: center; overflow-x: auto; }
+  .react-top-actions { grid-column: 2; grid-row: 1; }
+  .react-dashboard-grid { grid-template-columns: minmax(250px, 0.82fr) minmax(390px, 1.18fr) minmax(285px, 0.95fr); }
+}
+
+@media (max-width: 1080px) {
+  .react-dashboard-grid { grid-template-columns: minmax(280px, 0.9fr) minmax(380px, 1.1fr); }
+  .react-events-column { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .react-events-column .cc-card:first-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 760px) {
+  .react-topbar { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 16px; }
+  .react-nav { order: 3; width: 100%; justify-content: flex-start; }
+  .react-top-actions { width: 100%; justify-content: flex-start; overflow-x: auto; padding-bottom: 2px; }
+  .react-status-pill { order: -1; }
+  .react-workspace { padding: 22px 16px 50px; }
+  .react-hero-row { display: block; }
+  .react-hero-meta { margin-top: 18px; border-top: 1px solid var(--border); border-left: 0; padding: 12px 0 0; }
+  .react-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .react-dashboard-grid { grid-template-columns: 1fr; }
+  .react-home-grid { grid-template-columns: 1fr; }
+  .react-agent-graph-toolbar { align-items: flex-start; flex-direction: column; }
+  .react-agent-graph-filters { align-items: stretch; }
+  .react-agent-graph-filters label { flex: 1 1 150px; }
+  .react-agent-graph-filters select { width: 100%; max-width: none; }
+  .react-agent-graph-node { width: min(230px, 44%); }
+  .react-events-column { grid-column: auto; display: flex; }
+  .react-panel-tall { min-height: 0; }
+  .react-page-hero { display: block; }
+  .react-page-hero-count { margin-top: 18px; width: fit-content; border-top: 1px solid var(--border); border-left: 0; padding: 12px 0 0; }
+  .react-filter-bar { align-items: stretch; flex-wrap: wrap; }
+  .react-filter-title { width: 100%; }
+  .react-filter-bar label { flex: 1 1 150px; }
+  .react-full-width-widget, .react-diff-widget { grid-template-columns: minmax(0,1fr) auto; gap: 12px; }
+  .react-full-widget-leading { grid-column: 1 / -1; }
+  .react-full-widget-middle { padding-left: 0; border-left: 0; }
+  .react-full-widget-status { justify-items: end; }
+  .react-full-widget-chevron { grid-column: 2; grid-row: 2; }
+  .react-widget-events { margin-left: 0; }
+  .react-dialog-summary-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 430px) {
+  .react-brand-subtitle { display: none; }
+  .react-top-actions { flex-wrap: wrap; }
+  .react-metric-grid { gap: 7px; }
+  .react-metric-card { min-height: 88px; padding: 12px; }
+  .react-metric-card strong { font-size: 20px; }
+  .react-trigger-grid { grid-template-columns: 1fr; }
+}

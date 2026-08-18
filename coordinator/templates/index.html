@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}CodeClaim Control Mesh - CockroachDB Semantic Outbox × Multi-Agent Code Repair{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+  <!-- Top Global Navigation Header -->
+  <header class="app-header cc-topbar">
+    <div class="header-brand">
+      <div class="brand-icon" aria-hidden="true">CC</div>
+      <div class="brand-titles">
+        <span class="brand-eyebrow">COCKROACHDB / CONTROL PLANE</span>
+        <h1>CodeClaim <span>Control Mesh</span></h1>
+        <p>Cross-service compatibility workspace</p>
+      </div>
+    </div>
+
+    <nav class="workspace-nav" aria-label="Workspace sections">
+      <span class="workspace-nav-item is-active">Overview</span>
+      <span class="workspace-nav-item">Contracts</span>
+      <span class="workspace-nav-item">Agent runs</span>
+      <span class="workspace-nav-item">Audit trail</span>
+    </nav>
+
+    <div class="header-actions">
+      <div class="status-pill" id="changefeed-status-pill" data-state="healthy">
+        <span class="pulse-dot"></span>
+        <span id="changefeed-label">CDC Changefeed Active</span>
+      </div>
+
+      <div class="version-badge" id="reload-version-badge" title="Monotonic Reload Version Allocated on CockroachDB">
+        Version: v<span id="version-number">{{ reload_version|default(1) }}</span>
+      </div>
+
+      <label class="toggle-control">
+        <input type="checkbox" id="toggle-auto-page-reload" /> Auto-Reload Page
+      </label>
+
+      <button class="btn btn-sm btn-ghost" id="btn-refresh" onclick="refreshDashboard(true)">
+        <span class="button-icon" aria-hidden="true">↻</span> Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Outage Alert Banner (hidden unless DB/Coordinator is unreachable) -->
+  <div id="db-outage-banner" class="system-banner" role="status" aria-live="polite">
+    <span class="banner-icon" aria-hidden="true">!</span>
+    <span>Checking CockroachDB connection…</span>
+  </div>
+
+  <!-- First-viewport operating summary -->
+  <section class="overview-strip" aria-label="System overview">
+    <div class="overview-heading">
+      <span class="eyebrow">LIVE OPERATIONS</span>
+      <h2>Compatibility control plane</h2>
+      <p>One place to see contract drift, agent work, and durable event lineage.</p>
+    </div>
+    <div class="metric-grid">
+      <article class="metric-card">
+        <div class="metric-label"><span class="metric-dot metric-dot-green"></span>Database</div>
+        <strong class="metric-value" id="metric-db-status">Checking</strong>
+        <span class="metric-note" id="metric-db-detail">CockroachDB source of truth</span>
+      </article>
+      <article class="metric-card">
+        <div class="metric-label"><span class="metric-dot metric-dot-blue"></span>Services</div>
+        <strong class="metric-value" id="metric-service-count">—</strong>
+        <span class="metric-note">registered in the mesh</span>
+      </article>
+      <article class="metric-card">
+        <div class="metric-label"><span class="metric-dot metric-dot-amber"></span>Agent work</div>
+        <strong class="metric-value" id="metric-task-count">—</strong>
+        <span class="metric-note">active compatibility tasks</span>
+      </article>
+      <article class="metric-card">
+        <div class="metric-label"><span class="metric-dot metric-dot-purple"></span>Event spine</div>
+        <strong class="metric-value" id="metric-event-count">—</strong>
+        <span class="metric-note">recent outbox events</span>
+      </article>
+    </div>
+  </section>
+
+  <!-- 3-Panel Control Mesh Layout -->
+  <main class="dashboard-grid">
+    <!-- PANEL 1: Global Contract Mesh & Semantic Memory -->
+    <section class="dashboard-panel" id="panel-contracts">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="panel-icon" aria-hidden="true">◈</span>
+          <h2>Contract Mesh & Semantic Memory</h2>
+        </div>
+        <span class="panel-count" id="contracts-count">2 Services</span>
+      </div>
+
+      <div class="panel-body">
+        <!-- Quick Simulation Actions -->
+        <div class="card" style="background-color: rgba(0, 229, 153, 0.04); border-color: rgba(0, 229, 153, 0.2);">
+          <div class="card-header">
+            <span class="card-title" style="font-size: 13px;">Demo Scenario Triggers</span>
+            <span class="badge badge-emerald">Interactive</span>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 6px;">
+            <button class="btn btn-sm btn-primary" onclick="triggerSimulationDrift()" style="flex: 1;">
+              ⚡ Trigger Breaking Drift (v2)
+            </button>
+            <button class="btn btn-sm btn-success" onclick="triggerSimulationReconcile()" style="flex: 1;">
+              🤖 Trigger Adaptation
+            </button>
+          </div>
+        </div>
+
+        <!-- Microservice Status Summary -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Registered Microservices</span>
+            <span class="badge badge-emerald" id="mesh-health-badge">Mesh Active</span>
+          </div>
+          <div id="services-list" class="services-container">
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+              Loading microservice topology...
+            </div>
+          </div>
+        </div>
+
+        <!-- Confirmed Cross-Service Dependency Matrix -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Confirmed HTTP Dependency Matrix</span>
+            <span class="badge badge-blue" id="dependency-count">0 Dependencies</span>
+          </div>
+          <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+            Deterministic, relationally verified HTTP dependencies tracked in CockroachDB.
+          </p>
+          <div id="dependency-matrix-container" class="dependencies-container">
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+              No dependencies registered yet
+            </div>
+          </div>
+        </div>
+
+        <!-- Candidate dependencies are intentionally separate from coordination truth -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Dependency Candidates — Not Coordination Truth</span>
+            <span class="badge badge-amber" id="dependency-candidate-count">0 Candidates</span>
+          </div>
+          <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+            Declared or rejected candidates require explicit confirmation before agents can bind to them.
+          </p>
+          <div id="dependency-candidates-container" class="dependencies-container">
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+              No unconfirmed dependency candidates.
+            </div>
+          </div>
+        </div>
+
+        <!-- Contract Publication Timeline -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Contract Publication Timeline</span>
+            <span class="badge badge-blue" id="timeline-count">0 Revisions</span>
+          </div>
+          <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+            Immutable versioned schema publications across the microservice mesh.
+          </p>
+          <div id="contract-timeline-container" class="timeline-list">
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+              No contract revisions recorded.
+            </div>
+          </div>
+        </div>
+
+        <!-- Semantic Memory Vector Explorer -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Semantic Vector Explorer</span>
+            <span class="badge badge-purple">1536-dim Vector</span>
+          </div>
+          <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;">
+            Query candidate microservice contracts using CockroachDB native vector cosine distance.
+          </p>
+          <div class="search-box">
+            <input type="text" id="semantic-search-input" placeholder="e.g. order payment settlement with stripe token..." onkeypress="handleSearchKeypress(event)" />
+            <button class="btn btn-primary" onclick="triggerSemanticSearch()">Search</button>
+          </div>
+          <div id="semantic-results" style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+              Enter a query to discover matching contracts via vector embeddings.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: Multi-Agent Execution & Checkpoint Boundaries -->
+    <section class="dashboard-panel" id="panel-agents">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="panel-icon" aria-hidden="true">⌘</span>
+          <h2>Multi-Agent Execution & Compatibility</h2>
+        </div>
+        <span class="panel-count" id="tasks-count">0 Active</span>
+      </div>
+
+      <div class="panel-body">
+        <div class="card" style="background-color: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.2);">
+          <div class="card-header">
+            <span class="card-title" style="font-size: 13px;">Agent Boundary Protocol</span>
+            <span class="badge badge-blue">Deterministic Checkpoints</span>
+          </div>
+          <p style="font-size: 12px; color: var(--text-secondary);">
+            CDC changefeeds interrupt executing agents on breaking schema changes at safe checkpoint boundaries with structured metadata (never CoT/prompts), rewind to replanning, run test gates, and await human sign-off.
+          </p>
+        </div>
+
+        <!-- In-Flight Agent Tasks List with Assumed Revisions -->
+        <div id="tasks-container" style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 32px 0;">
+            No agent repair tasks currently in-flight.
+          </div>
+        </div>
+
+        <!-- Compatibility Work Queue -->
+        <div class="card" style="margin-top: 12px;">
+          <div class="card-header">
+            <span class="card-title">Compatibility Work State</span>
+            <span class="badge badge-blue" id="compatibility-work-count">0 queued</span>
+          </div>
+          <div id="compatibility-work-list" class="timeline-list">
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">No compatibility work recorded.</div>
+          </div>
+        </div>
+
+        <!-- Structured Compatibility Incidents (Human Decision Required) -->
+        <div class="card" style="margin-top: 12px; border-color: rgba(244, 63, 94, 0.35); background-color: rgba(244, 63, 94, 0.03);">
+          <div class="card-header">
+            <span class="card-title" style="color: #fda4af;">🚨 Blocked / Incompatible Incidents</span>
+            <span class="badge badge-rose" id="compatibility-incident-count">0 incidents</span>
+          </div>
+          <div id="compatibility-incidents-list" class="timeline-list">
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">No human decisions required.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: Transactional Outbox, CDC Changefeed & Audit Lineage -->
+    <section class="dashboard-panel" id="panel-outbox">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="panel-icon" aria-hidden="true">≋</span>
+          <h2>Transactional Outbox & Audit Lineage</h2>
+        </div>
+        <span class="panel-count" id="outbox-count">Live Stream</span>
+      </div>
+
+      <div class="panel-body">
+        <!-- Breaking Changes Diff Visualizer -->
+        <div class="card" id="card-diff-viewer">
+          <div class="card-header">
+            <span class="card-title">Contract Schema Differencer</span>
+            <span class="badge badge-amber" id="diff-status-badge">No Active Drift</span>
+          </div>
+          <div id="diff-display" class="diff-viewer">
+            <span style="color: var(--text-muted);">Awaiting schema drift detection event...</span>
+          </div>
+        </div>
+
+        <!-- Audit Lineage Feed -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Cross-Service Audit Lineage</span>
+            <span class="badge badge-emerald">Append-Only</span>
+          </div>
+          <div id="audit-lineage-list" class="timeline-list">
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+              No audit records recorded yet.
+            </div>
+          </div>
+        </div>
+
+        <!-- Outbox Events Stream -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Coordinator Outbox Feed</span>
+            <span class="badge badge-purple">Transactional CDC</span>
+          </div>
+          <div id="outbox-list" class="timeline-list">
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 0;">
+              No outbox events recorded yet.
+            </div>
+          </div>
+        </div>
+
+        <!-- Deployment Promotions History -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Deployment Promotion History</span>
+            <span class="badge badge-emerald">Live Cutover</span>
+          </div>
+          <div id="deployments-list" class="timeline-list">
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+              No deployments recorded yet.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Human-In-The-Loop Approval Modal -->
+  <div class="modal-backdrop" id="approval-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Approve Agent Reconciliation Plan</h3>
+        <button class="modal-close" onclick="closeModal('approval-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+          Confirm sign-off on the adapted client code and verified test suite evidence for task <strong id="approve-task-id-label"></strong>.
+        </p>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Operator Name / Identity:</label>
+          <input type="text" id="approve-operator-input" value="lead-engineer" style="width: 100%;" />
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn" onclick="closeModal('approval-modal')">Cancel</button>
+        <button class="btn btn-success" id="btn-confirm-approve" onclick="submitTaskApproval()">Approve & Reconcile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Human-In-The-Loop Rejection Modal -->
+  <div class="modal-backdrop" id="rejection-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Reject Plan & Request Agent Re-plan</h3>
+        <button class="modal-close" onclick="closeModal('rejection-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+          Provide operator feedback for task <strong id="reject-task-id-label"></strong>. The agent will re-enter the REPLANNING phase.
+        </p>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Rejection Feedback / Reason:</label>
+          <input type="text" id="reject-reason-input" placeholder="e.g. Ensure idempotency header is preserved..." style="width: 100%;" />
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn" onclick="closeModal('rejection-modal')">Cancel</button>
+        <button class="btn btn-danger" id="btn-confirm-reject" onclick="submitTaskRejection()">Reject & Re-plan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Toast Notification Container -->
+  <div id="toast-container"></div>
+</div>
+{% endblock %}
