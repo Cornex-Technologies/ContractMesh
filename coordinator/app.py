@@ -32,8 +32,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 from fastapi import FastAPI, Header, HTTPException, Query, Request, Response, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, ConfigDict
@@ -784,7 +785,37 @@ async def get_dashboard_state(
         "db_healthy": is_db_healthy,
         "db_error": fetch_error or db_health.get("error"),
         "is_demo_mode": settings.is_demo_mode,
+        "public_demo_enabled": settings.public_demo_enabled,
     }
+
+
+@app.get("/api/demo/run")
+async def get_public_demo_run_status() -> dict[str, Any]:
+    """Return the current bounded public demo run without requiring an operator token."""
+    if not settings.public_demo_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Public demo is disabled")
+    from coordinator.public_demo import get_public_demo_run
+
+    row = await get_public_demo_run()
+    if not row:
+        return {"status": "IDLE", "phase": "NOT_STARTED", "run_id": None, "result": {}}
+    row["run_id"] = str(row["run_id"])
+    return row
+
+
+@app.post("/api/demo/run")
+async def launch_public_demo_run() -> JSONResponse:
+    """Launch the safe public demo workflow; this route never accepts arbitrary code or prompts."""
+    if not settings.public_demo_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Public demo is disabled")
+    from coordinator.public_demo import launch_public_demo
+
+    try:
+        run = await launch_public_demo()
+    except Exception as ex:
+        logger.exception("Unable to launch public demo")
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Public demo is temporarily unavailable") from ex
+    return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content=jsonable_encoder(run))
 
 
 @app.get("/api/events")
@@ -1313,13 +1344,12 @@ async def simulate_breaking_drift(
     v2_schema = {
         "type": "object",
         "properties": {
-            "amount": {"type": "number", "description": "Payment amount in decimal dollars"},
-            "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]},
-            "idempotency_key": {"type": "string", "description": "Unique UUIDv4 idempotency key"},
-            "payment_method_id": {"type": "string", "description": "Stripe payment method ID"},
-            "description": {"type": "string", "description": "Optional charge description"},
+            "amount": {"type": "integer", "description": "Payment amount in cents"},
+            "currency": {"type": "string", "description": "ISO 4217 currency code"},
+            "card_token": {"type": "string", "description": "Legacy card token"},
+            "token_id": {"type": "string", "description": "Token identifier already available in Orders"},
         },
-        "required": ["amount", "currency", "idempotency_key", "payment_method_id"],
+        "required": ["amount", "card_token", "token_id"],
     }
     return await publish_contract_revision(
         service_name="billing-service",
@@ -1327,7 +1357,7 @@ async def simulate_breaking_drift(
         http_method="POST",
         revision_number=2,
         schema_json=v2_schema,
-        semantic_summary="Billing Service v2 charges endpoint accepting payment_method_id and idempotency key",
+        semantic_summary="Billing Service v2 charges endpoint now requires token_id in addition to the existing card_token",
         published_by="simulation-operator",
         source_commit=source_commit,
     )

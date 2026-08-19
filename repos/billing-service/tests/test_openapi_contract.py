@@ -26,5 +26,5 @@ def test_billing_v1_charge_operation_is_published_in_openapi() -> None:
     assert operation["responses"]["200"]["content"]["application/json"]["schema"]
 
     schema = openapi["components"]["schemas"]["ChargeRequest"]
-    assert "token_id" in schema.get("required", [])
-
+    assert "token_id" not in schema.get("required", [])
+    assert "card_token" in schema.get("required", [])

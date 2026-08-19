@@ -77,6 +77,18 @@ def test_service_registration_migrations_remove_implicit_seeds_and_track_provena
     assert "DELETE FROM microservices" in migration_018
 
 
+def test_public_demo_run_migration_is_durable_and_bounded():
+    """The optional public button has a singleton state record, not an unbounded job queue."""
+    migration = (
+        Path(__file__).parent.parent / "coordinator" / "migrations" / "019_public_demo_runs.sql"
+    ).read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS public_demo_runs" in migration
+    assert "demo_key STRING PRIMARY KEY" in migration
+    assert "run_id UUID NOT NULL" in migration
+    assert "status IN ('RUNNING', 'COMPLETED', 'FAILED')" in migration
+    assert "updated_at TIMESTAMPTZ" in migration
+
+
 def test_changefeed_sql_validity():
     """Verify that changefeed.sql is well-formed with outbox table reference and valid authentication options."""
     changefeed_path = Path(__file__).parent.parent / "infra" / "cockroach" / "changefeed.sql"

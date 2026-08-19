@@ -98,7 +98,6 @@ async def test_scenario_1_billing_v1_orders_v1_http_compatible():
             amount=4999,
             currency="usd",
             card_token="tok_visa_4242_test",
-            token_id="demo-token-id",
         )
 
         assert response["status"] == "succeeded"
@@ -129,7 +128,6 @@ async def test_scenario_2_billing_v2_orders_v1_http_drift_failure():
                 amount=4999,
                 currency="usd",
                 card_token="tok_visa_4242_test",
-                token_id="demo-token-id",
             )
 
         # Verify exact HTTP 422 Unprocessable Entity status code
@@ -177,8 +175,8 @@ async def test_scenario_3_billing_v2_orders_v2_http_reconciled():
 
 
 @pytest.mark.asyncio
-async def test_billing_v1_request_contains_required_token_id():
-    """Orders v1 sends the required Billing token_id without changing checkout input."""
+async def test_billing_v1_request_uses_the_pre_change_shape():
+    """The baseline Orders client has not yet added the new required token_id."""
     captured_payload = None
 
     async def capture_request(request: httpx.Request) -> httpx.Response:
@@ -205,12 +203,10 @@ async def test_billing_v1_request_contains_required_token_id():
             amount=4999,
             currency="usd",
             card_token="tok_visa_4242_test",
-            token_id="demo-token-id",
         )
 
     assert captured_payload == {
         "amount": 4999,
         "currency": "usd",
         "card_token": "tok_visa_4242_test",
-        "token_id": "demo-token-id",
     }

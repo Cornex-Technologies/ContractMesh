@@ -191,7 +191,7 @@ migration in place.
 ### Install the project
 
 ```powershell
-git clone <your-repository-url>
+git clone https://github.com/Cornex-Technologies/ContractMesh
 Set-Location code-claim
 
 py -3.12 -m venv .venv
@@ -279,6 +279,38 @@ Start-Process http://127.0.0.1:8000/control
 
 Expected live health includes `status: healthy`, `coordinator: healthy`, and a
 healthy CockroachDB result. `demo_mode` should be `false` for the real workflow.
+
+### Optional one-click public demo
+
+For an EC2 showcase, set these values in the untracked `.env` before starting
+the coordinator:
+
+```dotenv
+PUBLIC_DEMO_ENABLED=true
+PUBLIC_DEMO_RUN_TIMEOUT_SECONDS=900
+COORDINATOR_BIND_HOST=0.0.0.0
+```
+
+After the pending migration is applied on startup, the Overview page shows
+`Run complete demo`. A visitor can click it without an operator token. The
+workflow is bounded and idempotent: it registers the two demo services if
+needed, creates the Billing v1 baseline and confirmed Orders dependency,
+publishes a breaking Billing v2 requiring `token_id`, processes drift through
+the outbox/inbox path, dispatches compatibility work, records a checkpoint,
+and leaves the task at `AWAITING_APPROVAL`. The dashboard then shows the
+contract diff, work item, task, checkpoint, audit lineage, and outbox events.
+
+This public route is deliberately a deterministic demonstration adapter. It
+does not accept prompts, run arbitrary visitor code, launch Antigravity/Codex,
+or write application source files. The real harness flow remains the protected
+workflow documented in [`LIVE_TESTING.md`](LIVE_TESTING.md). The scenario
+expects a clean Billing revision-1 baseline without `token_id`; if an older
+incompatible revision-2 scenario is already in the database, the run fails
+closed with a setup message instead of rewriting immutable history.
+
+The launcher remains loopback-only by default. `COORDINATOR_BIND_HOST=0.0.0.0`
+is an explicit EC2 choice; pair it with an AWS security-group rule for the
+chosen port, or put Nginx/HTTPS in front of it for a public deployment.
 
 ### Run tests
 
@@ -407,199 +439,12 @@ CockroachDB Cloud changefeed ──HTTPS POST──> ngrok ──> EC2 127.0.0.1
 Browser ───────────────────────HTTPS───────> ngrok ──> EC2 dashboard
 ```
 
-The coordinator normally binds to loopback. CockroachDB Cloud is outside the
-EC2 host and cannot call `127.0.0.1`; it needs a reachable HTTPS URL for
-`/events/cockroach`. Ngrok also lets the browser reach the dashboard without
-opening port 8000 to the Internet.
+CockroachDB Cloud is outside the EC2 host and cannot call `127.0.0.1`; it needs
+a reachable HTTPS URL for `/events/cockroach`. Ngrok supplies that URL without
+changing the coordinator's private loopback binding or opening port 8000 to the
+Internet.
 
-Ngrok is therefore suitable for a hackathon or temporary demonstration. It is
-not required on EC2 when the deployment has a stable HTTPS domain through an
-Application Load Balancer, ACM certificate, or an Nginx/Let's Encrypt reverse
-proxy. That is the recommended production posture. With ngrok, every new URL
-requires the changefeed sink to be recreated or updated; an old URL will produce
-changefeed `404`/offline errors.
-
-When using EC2, run ngrok on the EC2 instance that hosts the coordinator—not on
-the developer laptop—and verify both:
-
-```bash
-curl -fsS https://<ngrok-host>/health
-curl -fsS https://<ngrok-host>/control
-```
-
-The local CodeClaim MCP process is a separate path. It is a trusted stdio
-process used by Antigravity/Codex and connects to CockroachDB with its harness
-identity; ngrok is not needed for those local MCP calls. Never upload local
-`mcp_*.json` files containing tokens or database credentials to EC2.
-
-## Deploy to Amazon EC2
-
-The simplest demo deployment is a single Amazon Linux 2023 EC2 instance with
-the coordinator and React bundle. Keep the database in CockroachDB Cloud.
-
-### 1. Launch the instance in the AWS Console
-
-In **EC2 → Launch instance**:
-
-- Region: the same AWS region used for the demo, for example
-  `ap-southeast-1`.
-- AMI: Amazon Linux 2023.
-- Instance type: `t3.medium` is a reasonable demo starting point.
-- Storage: at least 20 GB gp3.
-- IAM instance profile: attach a role with
-  `AmazonSSMManagedInstanceCore` and a least-privilege Bedrock policy allowing
-  `bedrock:InvokeModel` for the selected embedding model. Add S3 read access
-  only if the instance downloads a private artifact.
-- Security group: do not expose port 8000 publicly. If using ngrok, outbound
-  HTTPS is sufficient. If using an ALB/Nginx, expose only HTTPS 443 and restrict
-  the backend security group to the proxy.
-
-Use AWS Systems Manager Session Manager from the console instead of opening SSH
-for the demo when the instance has the SSM role and network access.
-
-### 2. Upload a sanitized application artifact
-
-Build the frontend locally, then create an archive that excludes credentials,
-MCP configs, virtual environments, Git metadata, and runtime state. Upload it to
-a private S3 bucket and download it from the instance, or transfer it through
-your approved deployment path.
-
-```powershell
-Set-Location C:\Users\dell\Desktop\Projects\code-claim
-Set-Location frontend
-npm install
-npm run build
-Set-Location ..
-
-# Review the archive contents before uploading it.
-# The React production bundle is already under coordinator/static/dashboard.
-# Keep frontend/node_modules and other development-only files out of the artifact.
-Compress-Archive -Path coordinator,scripts,infra,pyproject.toml,README.md,LIVE_TESTING.md `
-  -DestinationPath codeclaim-demo.zip -Force
-```
-
-Do not include `.env`, `mcp_*.json`, `.venv`, `receipts`, `.cutover_journal.json`,
-or database dumps in the artifact.
-
-### 3. Install and configure on EC2
-
-From the Session Manager shell:
-
-```bash
-sudo dnf update -y
-sudo dnf install -y git python3.12 python3.12-pip unzip
-sudo mkdir -p /opt/codeclaim
-sudo unzip -o /tmp/codeclaim-demo.zip -d /opt/codeclaim
-sudo chown -R ec2-user:ec2-user /opt/codeclaim
-
-cd /opt/codeclaim
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e '.[dev]'
-```
-
-Create `/etc/codeclaim.env` with root-only permissions. Inject real values using
-your secret-management process:
-
-```dotenv
-COCKROACH_DATABASE_URL="postgresql://<user>:<password>@<cluster-host>:26257/codeclaim_db?sslmode=verify-full"
-CHANGEFEED_WEBHOOK_SECRET="<long-random-webhook-secret>"
-COORDINATOR_API_KEY="<long-random-operator-secret>"
-AWS_REGION=ap-southeast-1
-BEDROCK_EMBEDDING_PROVIDER=cohere_v4
-BEDROCK_EMBEDDING_MODEL_ID=cohere.embed-v4:0
-EMBEDDING_DIMENSION=1536
-IS_DEMO_MODE=false
-DEMO_AUTO_RECONCILE=false
-COORDINATOR_HOST=127.0.0.1
-COORDINATOR_PORT=8000
-```
-
-```bash
-sudo chmod 600 /etc/codeclaim.env
-sudo chown root:root /etc/codeclaim.env
-```
-
-### 4. Run the coordinator as a service
-
-Create `/etc/systemd/system/codeclaim.service`:
-
-```ini
-[Unit]
-Description=CodeClaim Coordinator
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=ec2-user
-WorkingDirectory=/opt/codeclaim
-EnvironmentFile=/etc/codeclaim.env
-Environment=PYTHONPATH=/opt/codeclaim
-ExecStart=/opt/codeclaim/.venv/bin/python /opt/codeclaim/scripts/start_server.py
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable it and inspect logs:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now codeclaim
-sudo systemctl status codeclaim
-curl -fsS http://127.0.0.1:8000/health
-```
-
-### 5. Choose ingress
-
-For the hackathon demo, install and run ngrok on EC2:
-
-```bash
-ngrok http 8000
-```
-
-Set the changefeed sink to:
-
-```text
-webhook-https://<current-ngrok-host>/events/cockroach
-```
-
-Then verify the public health endpoint and run `live_preflight.py` from a
-machine that can reach the URL. For a durable deployment, use
-[`infra/nginx.conf`](infra/nginx.conf) behind a stable DNS name and HTTPS, or
-an AWS Application Load Balancer with an ACM certificate. In either case, keep
-Uvicorn on `127.0.0.1:8000` and do not expose it directly.
-
-## MCP and audit access
-
-CodeClaim has two different MCP concepts:
-
-1. **CodeClaim MCP** is a trusted local stdio server for a coding harness. It
-   authenticates with `MCP_HARNESS_ID` and `MCP_HARNESS_TOKEN` and uses the
-   configured CockroachDB connection. It provides coordination tools such as
-   identity, contract discovery, work claiming, checkpoints, and evidence
-   submission.
-2. **CockroachDB Managed MCP** is a read-only audit surface for engineers using
-   Claude Code or Cursor to inspect CockroachDB views and history.
-
-Register harnesses and generate redacted local configuration templates with:
-
-```powershell
-\.venv\Scripts\python.exe scripts\register_agents.py
-```
-
-The returned harness tokens are shown once. Put them in the local client's
-secret store. Do not commit or upload secret-bearing configs. For REST-based
-harnesses, set `CODECLAIM_BASE_URL` to the coordinator's stable public URL and
-use the operator key only for operator endpoints.
-
-The audit runbook is [`infra/skills/cockroach_mcp_audit.md`](infra/skills/cockroach_mcp_audit.md).
-Slack notifications, if enabled, are delivered asynchronously from the
-transactional outbox and delivery attempts are recorded in CockroachDB.
+If a public domain is available, the same can be used in cockroach db change feed
 
 ## Explicit endpoint retirement
 
@@ -620,10 +465,6 @@ removed or safe.
 - [`infra/nginx.conf`](infra/nginx.conf): stable HTTPS reverse-proxy template.
 - [`infra/skills/cockroach_mcp_audit.md`](infra/skills/cockroach_mcp_audit.md):
   managed MCP audit setup.
-- [Amazon Linux 2023 on EC2](https://docs.aws.amazon.com/linux/al2023/ug/ec2.html)
-- [Attach an IAM role to an EC2 instance](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/attach-iam-role.html)
-- [Connect with Session Manager](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-with-systems-manager-session-manager.html)
-- [Amazon Bedrock model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
 
 ## License
 

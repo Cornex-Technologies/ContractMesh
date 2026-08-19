@@ -384,6 +384,29 @@ async def test_simulation_trigger_endpoints():
 
 
 @pytest.mark.asyncio
+async def test_public_demo_is_bounded_and_does_not_require_operator_token():
+    """The public demo is opt-in and its launch path never invokes operator auth."""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        with patch.object(settings, "public_demo_enabled", False):
+            disabled = await client.post("/api/demo/run")
+            assert disabled.status_code == 404
+
+        run_payload = {
+            "run_id": "demo-run-1",
+            "status": "RUNNING",
+            "phase": "STARTING",
+            "result": {},
+        }
+        with patch.object(settings, "public_demo_enabled", True), \
+             patch("coordinator.public_demo.launch_public_demo", AsyncMock(return_value=run_payload)) as launch:
+            response = await client.post("/api/demo/run")
+            assert response.status_code == 202
+            assert response.json()["run_id"] == "demo-run-1"
+            launch.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_deploy_read_endpoints_require_auth():
     """Verify /deploy/history and /deploy/services require operator token verification."""
     transport = httpx.ASGITransport(app=app)

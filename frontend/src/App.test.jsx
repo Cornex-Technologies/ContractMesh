@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -114,6 +114,27 @@ describe("CodeClaim React dashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(await screen.findByText("No compatibility obligations match this time window.")).toBeInTheDocument();
     expect(agentRunsAttempts).toBe(2);
+  });
+
+  it("launches the opt-in public demo without an operator-token prompt", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ...healthyState,
+      public_demo_enabled: true,
+    }), {
+      status: 202,
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderDashboard();
+    expect(await screen.findByText("CockroachDB Connected")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Run complete demo" }));
+
+    expect(window.prompt).not.toHaveBeenCalled();
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/demo/run"))).toBe(true));
+    const demoRequest = fetchMock.mock.calls.find(([url]) => String(url).includes("/api/demo/run"));
+    expect(demoRequest[1]).toMatchObject({ method: "POST" });
+    expect(demoRequest[1].headers || {}).not.toHaveProperty("X-Operator-Token");
   });
 
   it("does not render test status on the overview after agent execution is moved to its own page", async () => {

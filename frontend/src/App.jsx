@@ -54,6 +54,7 @@ const EMPTY_STATE = {
   db_healthy: false,
   db_error: null,
   is_demo_mode: false,
+  public_demo_enabled: false,
 };
 
 const VALID_VIEWS = new Set(["overview", "agents", "contract-diffs", "audit"]);
@@ -213,6 +214,20 @@ function App() {
     onError: (error, variables) => notify(`${variables.failureLabel}: ${error.message}`, "error"),
   });
 
+  const publicDemoMutation = useMutation({
+    mutationFn: () => fetchJson("/api/demo/run", { method: "POST" }),
+    onSuccess: (run) => {
+      notify(
+        run.status === "COMPLETED"
+          ? "The public demo has already completed; the current CockroachDB evidence is still available."
+          : "Demo started. The dashboard will update as each durable phase commits.",
+        "success",
+      );
+      invalidate();
+    },
+    onError: (error) => notify(`Public demo could not start: ${error.message}`, "error"),
+  });
+
   const searchMutation = useMutation({
     mutationFn: (query) => operatorPost("/api/semantic-search", { query, top_k: 5 }),
     onSuccess: (result) => {
@@ -233,6 +248,8 @@ function App() {
       failureLabel: isDrift ? "Drift simulation failed" : "Adaptation simulation failed",
     });
   };
+
+  const runPublicDemo = () => publicDemoMutation.mutate();
 
   const submitApproval = () => {
     if (!dialog?.taskId) return;
@@ -347,10 +364,23 @@ function App() {
                 <div className="react-trigger-box">
                   <div className="react-eyebrow">DEMO SCENARIO TRIGGERS</div>
                   <div className="react-trigger-grid">
-                    <Button size="sm" onClick={() => runSimulation("drift")} disabled={actionMutation.isPending}><Zap size={14} /> Breaking drift</Button>
-                    <Button size="sm" variant="success" onClick={() => runSimulation("reconcile")} disabled={actionMutation.isPending}><Bot size={14} /> Adaptation</Button>
+                    {displayData.public_demo_enabled ? (
+                      <Button size="sm" variant="success" onClick={runPublicDemo} disabled={publicDemoMutation.isPending}>
+                        {publicDemoMutation.isPending ? <Loader2 size={14} className="spin" /> : <Sparkles size={14} />}
+                        {publicDemoMutation.isPending ? "Running demo..." : "Run complete demo"}
+                      </Button>
+                    ) : (
+                      <>
+                        <Button size="sm" onClick={() => runSimulation("drift")} disabled={actionMutation.isPending}><Zap size={14} /> Breaking drift</Button>
+                        <Button size="sm" variant="success" onClick={() => runSimulation("reconcile")} disabled={actionMutation.isPending}><Bot size={14} /> Adaptation</Button>
+                      </>
+                    )}
                   </div>
-                  <p className="react-microcopy">Publishes through the same coordinator transaction path used by live contract changes.</p>
+                  <p className="react-microcopy">
+                    {displayData.public_demo_enabled
+                      ? "Runs a bounded Billing token_id compatibility scenario. No operator token, prompt, source write, or arbitrary code execution is exposed."
+                      : "Publishes through the same coordinator transaction path used by live contract changes."}
+                  </p>
                 </div>
 
                 <ServiceTopology services={displayData.services} />

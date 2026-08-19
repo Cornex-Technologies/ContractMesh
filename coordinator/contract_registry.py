@@ -295,12 +295,38 @@ def extract_pydantic_schema_from_git_commit(
 ) -> dict[str, Any]:
     """Extract a Pydantic model's JSON Schema from a specific Git commit SHA/ref using `git show <commit>:<file>` and static AST."""
     path = Path(repo_path)
+
+    # Service repositories may be directories inside the coordinator's
+    # monorepo. Resolve the Git object path relative to the actual worktree
+    # root so commit-bound extraction works for both standalone repos and
+    # nested service repos.
+    git_root = path
+    try:
+        root_result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(path),
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        git_root = Path(root_result.stdout.strip()).resolve()
+    except Exception:
+        pass
+    try:
+        relative_repo = path.resolve().relative_to(git_root)
+        object_prefix = relative_repo.as_posix()
+    except ValueError:
+        object_prefix = ""
+
+    def git_object_path(filename: str) -> str:
+        return f"{object_prefix}/{filename}" if object_prefix else filename
     
     # Check if a checked-in JSON Schema artifact exists at that commit (e.g. schemas_v1.json)
     json_artifact_name = Path(module_filename).with_suffix(".json").name
     try:
         res_json = subprocess.run(
-            ["git", "show", f"{source_commit}:{json_artifact_name}"],
+            ["git", "show", f"{source_commit}:{git_object_path(json_artifact_name)}"],
             cwd=str(path),
             capture_output=True,
             text=True,
@@ -318,7 +344,7 @@ def extract_pydantic_schema_from_git_commit(
 
     try:
         res = subprocess.run(
-            ["git", "show", f"{source_commit}:{module_filename}"],
+            ["git", "show", f"{source_commit}:{git_object_path(module_filename)}"],
             cwd=str(path),
             capture_output=True,
             text=True,

@@ -86,6 +86,18 @@ class Settings(BaseSettings):
         validation_alias="DEMO_ALLOW_ANONYMOUS_MUTATIONS",
         description="When False (default), demo mode requires a demo access token for mutating endpoints.",
     )
+    public_demo_enabled: bool = Field(
+        default=False,
+        validation_alias="PUBLIC_DEMO_ENABLED",
+        description="Expose the bounded no-auth public demo workflow. Keep disabled for private deployments.",
+    )
+    public_demo_run_timeout_seconds: int = Field(
+        default=900,
+        validation_alias="PUBLIC_DEMO_RUN_TIMEOUT_SECONDS",
+        ge=60,
+        le=3600,
+        description="Maximum age before a public demo RUNNING record may be recovered.",
+    )
 
     coordinator_host: str = Field(
         default="0.0.0.0",

@@ -1,7 +1,7 @@
 """Billing Microservice Application.
 
 Supports deployment under specific contract revisions on the canonical '/v1/charges' route:
-- Contract Revision 1.0: Expects 'card_token'
+- Contract Revision 1.0: Expects 'card_token'; the public demo later adds 'token_id'
 - Contract Revision 2.0: Expects 'payment_method_id' (Breaking Migration)
 """
 
