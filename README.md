@@ -1,450 +1,631 @@
-# CodeClaim: CockroachDB Semantic Outbox × Checkpoint-Aware Multi-Agent Code Repair
+# CodeClaim: CockroachDB Compatibility Control Plane for Agentic Microservices
 
-[![Tests](https://img.shields.io/badge/pytest-164%20passed-10b981.svg)](tests/)
-[![CockroachDB](https://img.shields.io/badge/CockroachDB-Transactional%20CDC%20%26%20Vector-6933ff.svg)](https://www.cockroachlabs.com/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
+[![Tests](https://img.shields.io/badge/tested%20with-pytest-10b981.svg)](tests/)
+[![CockroachDB](https://img.shields.io/badge/CockroachDB-transactional%20CDC%20%26%20vector%20search-6933ff.svg)](https://www.cockroachlabs.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.141.1-009688.svg)](https://fastapi.tiangolo.com/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> **CockroachDB Hackathon 2026 Submission**  
-> *A distributed transactional semantic memory plane and checkpoint-aware coordinator for multi-agent microservice code repair.*
+> **CockroachDB Hackathon 2026 submission**
+> A compatibility control plane that lets independent coding harnesses change
+> internal FastAPI services in parallel without silently breaking their HTTP
+> contracts.
 
----
+## What CodeClaim does
 
-## 🌟 The Problem: Multi-Agent Microservice Chaos
+CodeClaim is the coordination layer between coding agents and separate internal
+microservice repositories. It is not a source-code lock manager, a generic job
+queue, or a replacement for Codex, Antigravity, Claude Code, or another coding
+harness.
 
-When autonomous coding agents work on interdependent microservices in parallel, traditional coordination paradigms fail:
-1. **Silent Contract Drift**: Agent A mutates an upstream service API (e.g., `billing-service` v1 $\rightarrow$ v2); Agent B on `orders-service` continues writing code against outdated assumptions, causing runtime cascading failures.
-2. **Dual-Write Vulnerabilities**: Publishing contract revisions and event notifications across separate database and message bus operations leads to inconsistent distributed state upon crashes.
-3. **Destructive Worktree Collisions**: Multiple agents modifying the same repository overwrite uncommitted changes without isolated sandbox worktrees or rollback checkpoints.
-4. **Missing Proof of Correctness**: Automated code generation without rigorous AST static analysis, strict test execution gates, and cryptographic audit trails cannot be safely deployed.
+The v1 boundary is deliberately narrow:
 
----
+- Python services using FastAPI and Pydantic.
+- Internal HTTP/JSON APIs.
+- Deterministic contracts normalized from FastAPI's generated OpenAPI schema.
+- Exact, human-confirmed consumer-to-provider dependencies.
+- External coding harnesses operating in their own repositories or worktrees.
 
-## 💡 The Solution: CockroachDB as Distributed Agent Memory
+The central demonstration is:
 
-**CodeClaim** transforms **CockroachDB Dedicated/Serverless** into an active, multi-agent coordination plane:
+1. `billing-service` publishes `POST /v1/charges` revision 1.
+2. `orders-service` confirms that it consumes that exact operation and records
+   its assumed provider revision.
+3. Antigravity changes Billing by adding a required `token_id` field and
+   publishes revision 2.
+4. CockroachDB commits the contract revision, drift finding, audit record, and
+   outbox event transactionally.
+5. A CockroachDB changefeed delivers the outbox event to the coordinator.
+6. CodeClaim creates compatibility work for Orders and exposes the exact
+   provider operation and revision that must be addressed.
+7. Codex reads the updated contract through CodeClaim, updates the Orders client
+   to pass its existing global `TOKEN_ID`, runs tests, and submits sanitized
+   evidence.
+8. The dashboard shows the contract diff, compatibility obligation, checkpoints,
+   audit lineage, and transactional outbox events.
 
+Human approval remains a deliberate gate before any deployment promotion.
+
+## Architecture
+
+```text
+                           CockroachDB Cloud
+     ┌─────────────────────────────────────────────────────────────┐
+     │ contracts · revisions · dependencies · tasks · checkpoints  │
+     │ drift · compatibility work · audit · transactional outbox   │
+     │ semantic_memory (optional VECTOR(1536) discovery)           │
+     └───────────────┬───────────────────────────────┬─────────────┘
+                     │                               │
+             SQL/MCP coordination              changefeed CDC
+                     │                               │
+       ┌─────────────▼─────────────┐     ┌─────────▼──────────────┐
+       │ CodeClaim Coordinator      │     │ POST /events/cockroach │
+       │ FastAPI + drift worker     │◄────┤ idempotent event inbox  │
+       │ dispatcher + audit APIs    │     └─────────────────────────┘
+       └─────────────┬─────────────┘
+                     │
+          ┌──────────┴──────────┐
+          │                     │
+   Antigravity / provider       Codex / consumer
+   billing-service              orders-service
+   publishes contract           claims work, replans,
+   revision 2                   updates client, submits evidence
+                     │
+                     ▼
+             React control dashboard
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                        COCKROACHDB TRANSACTIONAL MEMORY PLANE                          │
-│                                                                                        │
-│  ┌───────────────────────────────┐   ┌───────────────────────────┐   ┌──────────────────────┐  │
-│  │  service_contract_revisions   │   │      semantic_memory      │   │  coordinator_outbox  │  │
-│  │ (Serializable Immut.)         │   │ (1536-dim Vector Cosine)  │   │  (Transactional CDC) │  │
-│  └───────────┬───────────────────┘   └─────────────┬─────────────┘   └──────────┬───────────┘  │
 
-└──────────────┼─────────────────────────────┼────────────────────────────┼──────────────┘
-               │ 1. Atomic Publication       │ 2. Vector Semantic Query   │ 3. CDC Stream
-               ▼                             ▼                            ▼
-┌──────────────────────────────┐ ┌──────────────────────────┐ ┌──────────────────────────┐
-│ Agent A (Billing Producer)   │ │ 3-Panel Control Mesh UI  │ │ Agent B (Orders Consumer)│
-│ • Sandboxed AST extraction   │ │ • Semantic Vector Search │ │ • LangGraph Checkpointer │
-│ • Single-TX contract commit  │ │ • Live Outbox Timeline   │ │ • Rewind & Re-plan       │
-│ • Git commit SHA provenance  │ │ • Human Sign-off Modals  │ │ • Isolated UUID Worktree │
-└──────────────────────────────┘ └──────────────────────────┘ └────────────┬─────────────┘
-                                                                           │ 4. Test Gate & Cutover
-                                                                           ▼
-                                                              ┌──────────────────────────┐
-                                                              │ Deployer & Process Sup.  │
-                                                              │ • Journaled directory cut│
-                                                              │ • Readiness verification │
-                                                              │ • SHA-256 Audit Receipt  │
-                                                              └──────────────────────────┘
-```
+CockroachDB is the authoritative coordination store. The dashboard is a
+projection of that state. Slack, if enabled, is an asynchronous notification
+projection of the transactional outbox and is never the source of truth.
 
----
+## Important invariants
 
-## 🎯 System Boundaries & Protocol Support
+### CockroachDB is authoritative
 
-### ✅ Supported Now (Production-Grade v1)
-- **Internal Python Services**: Microservices built with **FastAPI** and **Pydantic** models.
-- **Protocols & Formats**: Synchronous **HTTP/JSON** APIs.
-- **Contract Extraction**: Deterministic **OpenAPI-based contract extraction** via `codeclaim onboard` (importing `app.openapi()` or querying loopback `/openapi.json`).
-- **Harness Integrations**: External coding harnesses (**Codex, Claude Code, Cursor**, or internal runners) integrated deterministically through the authenticated **CodeClaim REST API & MCP Server**.
-- **Transactional Memory Plane**: **CockroachDB** is the sole authoritative transactional memory plane for contracts, confirmed dependencies, checkpoint metadata, append-only audit lineage, and outbox streams.
+Contract publication, compatibility work creation, audit lineage, and the
+coordinator outbox are written in the same serializable transaction. A failed
+compatibility-work creation must roll back the related contract mutation rather
+than leaving an untracked breaking change.
 
-### 🔮 Future Roadmap Only (Explicitly Deferred)
-- **gRPC / Protobuf**: Interface extraction and protocol buffer compatibility analysis.
-- **GraphQL**: Schema and operation AST extraction.
-- **Events & Message Queues**: Event-driven architectures and **AsyncAPI** contract schemas.
-- **Polyglot & Framework Adapters**: Non-Python ecosystems (TypeScript/Node.js, Go, Rust, Java/Kotlin) and other Python frameworks (Django, Flask).
-- **Third-Party Dependencies**: External SaaS/vendor SDK monitoring and public API documentation scraping.
+### Dependencies are exact and confirmed
 
-> [!IMPORTANT]
-> **No Automatic Support Claims**: CodeClaim does not claim automatic support for unsupported frameworks, languages, or protocols without a tested, deterministic machine-readable contract adapter.  
-> **Authoritative Memory vs. Semantic Discovery**: CockroachDB is the **authoritative transactional system of record** for all contracts, dependencies, audit events, and outbox queues. Bedrock vector embeddings (Cohere Embed v4) provide **optional semantic discovery only** (surfacing candidate endpoints via natural language search). Embeddings **never prove compatibility** and **never register dependencies automatically**.
+A dependency identifies:
 
----
+- consumer and provider service;
+- HTTP method and path;
+- path, query, and declared header parameters;
+- JSON request-body schema;
+- response schemas and status codes;
+- the consumer's assumed provider revision;
+- source-file/client evidence; and
+- explicit confirmation status.
 
-## 🔑 Key Invariants & Capabilities
+Embeddings may suggest candidates, but they never confirm dependencies or decide
+compatibility. Unconfirmed candidates are not coordination truth.
 
-### 1. Authoritative CockroachDB Memory Plane & Transactional Outbox
-CockroachDB provides serializable transactions for multi-statement atomic writes. Contract revisions, AST-extracted schema definitions, confirmed dependencies, append-only audit history, and outbox notification records are written in a **single serializable CockroachDB transaction**. If any validation step fails, the entire transaction rolls back—guaranteeing zero dual-write inconsistencies.
+### Compatibility is deterministic and fail-closed
 
-### 2. Optional Semantic Discovery (Bedrock Embeddings)
-Microservice schemas and natural language capability descriptions are converted to embeddings (via AWS Bedrock Cohere Embed v4) and indexed using CockroachDB's native **vector data types (`VECTOR(1536)`)** and **Cosine Distance (`<=>`) operators**. This allows developers to discover candidate contracts via natural language search. **Embeddings are auxiliary discovery only**; exact HTTP paths, Pydantic types, and deterministic OpenAPI schema diffs in CockroachDB remain the authoritative source of truth.
+The differencer handles required parameter changes, request and response schema
+changes, field removals or renames, type/format changes, enum removals,
+endpoint removal or renaming, response status changes, and tightened security
+requirements. Optional additions are normally non-breaking. Unknown semantic
+changes are `REVIEW_REQUIRED`, not silently classified as safe.
 
-### 3. CDC Changefeed & Real-Time Drift Worker
-CockroachDB transactional rangefeeds stream outbox mutations into an idempotent `event_inbox`. The **Drift Worker** runs an AST structural JSON schema differencer to detect breaking changes (field removals, required parameter additions, enum mutations) and interrupts downstream agents.
+Contract revisions are immutable. Canonical comparison preserves nested
+schemas, `$defs`, `$ref`, arrays, formats, enums, required fields, headers,
+parameters, and HTTP-interface metadata.
 
-### 4. Checkpoint-Aware Agent Recovery (LangGraph Checkpointer)
-When breaking drift is intercepted, the consumer agent (Agent B) rewinds to its last verified checkpoint, generates a UUID-isolated git worktree, synthesizes adaptive client code, and runs a sandboxed `pytest` test gate. It enters an `AWAITING_APPROVAL` state requiring operator sign-off before promotion.
+### Agents work in parallel
 
-### 5. Durable Cutover Journal & Fail-Closed Startup Recovery
-Promotions use a filesystem cutover journal (`.cutover_journal.json` with `os.fsync`) and atomic directory renames. If a crash occurs during deployment, the coordinator recovers previous backups on startup and readiness-checks the service before accepting traffic.
+CodeClaim does not lock source symbols. Provider and consumer agents can work
+in parallel in separate repositories or worktrees. When a confirmed provider
+contract changes, the consumer receives a compatibility obligation and must
+replan against the new revision before its result can be accepted.
 
-### 6. Managed Model Context Protocol (MCP) Read-Only Audit Role
-Provisions a cluster-scoped read-only `mcp_audit_agent` role with tailored relational views (`contract_drift_audit`, `contract_publication_audit`). Developers connect Cursor or Claude Code to CockroachDB Managed MCP for natural language queries over the entire distributed coordination history.
+### Prompts and sensitive evidence are not coordination data
 
-### 7. Cryptographic SHA-256 Execution Receipts & Non-Blocking S3 Archival
-Generates tamper-evident execution receipts binding contract versions, git commit SHAs, test evidence, and operator sign-offs with SHA-256 hashes, persisted locally and asynchronously uploaded to S3.
+Task registration uses bounded operational summaries. Raw prompts, chain of
+thought, source snippets, stack traces, environment logs, credentials, and
+database URLs must not be persisted. Test evidence is validated and redacted
+before persistence. Do not commit secret-bearing MCP configuration files.
 
-### 8. Harness-Neutral Compatibility Dispatch
-CodeClaim coordinates compatibility work between distinct, internal Python microservice repositories (FastAPI + Pydantic HTTP/JSON). External harnesses operate in parallel in isolated worktrees, while CockroachDB records the exact provider/consumer interface, revision assumption, source-file evidence, and confirmation state. The coordinator never source-locks symbols, auto-merges, or deploys a harness result.
-
-Compatibility work is created transactionally while the coordinator processes the committed contract-change outbox event. Uncertain semantic compatibility is fail-closed as `REVIEW_REQUIRED`. When a harness reports `BLOCKED` or `INCOMPATIBLE` (e.g., guest checkout cannot supply required `customer_id`), worktrees are preserved, audit events are recorded, and the incident transitions to `Human decision required`.
-
-### 9. Asynchronous Slack Notifications (Hackathon Scope)
-Slack is an optional asynchronous projection of `coordinator_outbox`, not a source of truth. Deliveries are filtered strictly for: (1) breaking contract published, (2) compatibility work created / replan required, and (3) compatibility blocked. Failures only update the delivery retry ledger in CockroachDB and never roll back transactions. Sensitive data (source code, customer records, secrets, prompts, CoT) is strictly scrubbed.
-
----
-
-## 📂 Repository Architecture
+## Repository layout
 
 ```text
 code-claim/
 ├── coordinator/
-│   ├── app.py                   # FastAPI Control Mesh coordinator & webhook ingestion
-│   ├── config.py                # Environment configuration & fail-closed runtime validation
-│   ├── contract_registry.py     # Sandboxed AST extractor & atomic publication engine
-│   ├── db.py                    # psycopg pool management & serialization retry wrappers
-│   ├── deployer.py              # Journaled atomic cutover, test gates & process supervisor
-│   ├── differencer.py           # Deterministic AST JSON schema differencing engine
-│   ├── drift_worker.py          # CDC changefeed consumer & drift detection loop
-│   ├── compatibility.py         # Harness registrations, work-item state, evidence recording
-│   ├── compatibility_dispatcher.py # Durable poll/webhook delivery loop
-│   ├── mcp_server.py            # Trusted local CodeClaim MCP integration surface
-│   ├── memory.py                # LangChain & CockroachDB native vector semantic memory
-│   ├── receipt_archiver.py      # Cryptographic SHA-256 execution receipt generator & S3 archiver
-│   ├── reconciliation.py        # LangGraph checkpointer & human-in-the-loop state machine
-│   ├── schema.sql               # CockroachDB schema with vector indexes & CDC changefeeds
-│   ├── static/                  # Vanilla CSS/JS frontend (secure sessionStorage tokens)
-│   └── templates/               # Jinja2 3-panel control dashboard template
-├── infra/
-│   ├── ccloud/                  # CockroachDB Cloud cluster setup & inspection scripts
-│   │   ├── inspect_cluster.py   # Sanitized cluster metadata & evidence extractor
-│   │   ├── provision_changefeed.sql # MCP audit role & CDC changefeed definitions
-│   │   └── setup_cluster.sh     # Dedicated cluster provisioning automation
-│   └── skills/
-│       └── cockroach_mcp_audit.md # Managed MCP audit role runbook for Claude Code / Cursor
+│   ├── app.py                    # FastAPI coordinator, dashboard APIs, webhook
+│   ├── cli.py                    # codeclaim onboard/dependency commands
+│   ├── config.py                 # fail-closed environment configuration
+│   ├── db.py                     # psycopg pool and transaction helpers
+│   ├── service_registry.py       # explicit service registration
+│   ├── onboarding.py             # deterministic FastAPI/OpenAPI extraction
+│   ├── contract_registry.py      # immutable contract publication/retirement
+│   ├── differencer.py            # deterministic HTTP compatibility rules
+│   ├── http_dependencies.py      # exact confirmed dependencies
+│   ├── compatibility.py          # work items, harnesses, evidence, approvals
+│   ├── reconciliation.py         # checkpoints and task state transitions
+│   ├── drift_worker.py           # changefeed/outbox event processing
+│   ├── compatibility_dispatcher.py # polling/webhook work delivery
+│   ├── mcp_server.py             # trusted local CodeClaim MCP surface
+│   ├── memory.py                 # optional CockroachDB vector discovery
+│   ├── slack_notifier.py         # optional asynchronous notifications
+│   ├── deployer.py               # optional journaled promotion machinery
+│   ├── migrations/               # append-only CockroachDB migrations
+│   └── static/dashboard/         # built React dashboard bundle
+├── frontend/                     # React/Vite/shadcn-compatible source UI
 ├── repos/
-│   ├── billing-service/         # Upstream microservice (FastAPI + Pydantic v1/v2 contracts)
-│   └── orders-service/          # Downstream consumer microservice (Client adaptors & tests)
+│   ├── billing-service/          # provider FastAPI fixture
+│   └── orders-service/           # consumer FastAPI fixture/client
+├── infra/
+│   ├── Dockerfile                # container deployment
+│   ├── nginx.conf                # HTTPS reverse-proxy template
+│   ├── cockroach/changefeed.sql  # changefeed template
+│   └── skills/                   # CockroachDB MCP audit runbook
 ├── scripts/
-│   └── run_demo.py              # Autonomous 7-step end-to-end scenario runner
-└── tests/                       # Comprehensive verification suite (88 passing tests)
-    ├── test_agent_runner.py     # Worktree isolation & reconciliation tests
-    ├── test_atomic_outbox.py    # AST extraction & atomic transactional outbox tests
-    ├── test_deployer.py         # Cutover crash recovery & process supervision tests
-    ├── test_differencer.py      # Breaking vs non-breaking schema diff tests
-    ├── test_drift_worker.py     # CDC changefeed auth, idempotency & drift detection tests
-    ├── test_environment.py      # Config validation & directory structure tests
-    ├── test_mcp_audit.py        # Cryptographic receipts & MCP audit role tests
-    ├── test_schema_and_db.py    # Migration checksums & transaction retry tests
-    ├── test_semantic_memory.py  # Native vector search & LangGraph checkpointer tests
-    └── test_ui.py               # 3-panel dashboard HTML, static assets & API tests
+│   ├── start_server.py           # selector-loop launcher, especially Windows
+│   ├── reset_demo_data.py        # explicit demo-data reset
+│   ├── register_agents.py        # harness registration/config templates
+│   ├── live_preflight.py         # read-only live readiness checks
+│   ├── live_harness_scenario.py  # REST-backed live scenario helper
+│   └── run_demo.py               # offline deterministic demo path
+├── tests/                        # coordinator and integration-oriented tests
+├── LIVE_TESTING.md               # detailed live Antigravity/Codex runbook
+└── pyproject.toml
 ```
 
----
+The migrations directory is the database source of truth. `coordinator/schema.sql`
+is retained for compatibility/reference; do not edit an already-applied
+migration in place.
 
-## 🚀 Quickstart & Local Setup
+## Local setup
 
-### 1. Prerequisites
-- Python 3.11+
-- Git
-- (Optional for Live DB) CockroachDB v24.1+ (or CockroachDB Serverless/Dedicated instance)
+### Prerequisites
 
-### 2. Installation
-```bash
-# Clone repository
-git clone https://github.com/your-org/code-claim.git
-cd code-claim
+- Python 3.10 or newer; Python 3.12 is recommended.
+- Git.
+- Node.js/npm if rebuilding the React dashboard.
+- A CockroachDB Cloud or local CockroachDB database for live mode.
+- AWS Bedrock access only if semantic embeddings are enabled.
 
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate
+### Install the project
 
-# Install dependencies
-pip install -e .
+```powershell
+git clone <your-repository-url>
+Set-Location code-claim
+
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
 ```
 
-### 3. Run the Comprehensive Test Suite
-```bash
-# Run all unit tests
-pytest -v
-```
-
----
-
-## 🎬 End-to-End Demo Execution
-
-To see CodeClaim run the full 7-step autonomous reconciliation cycle (Billing v2 breaking mutation $\rightarrow$ CDC Changefeed $\rightarrow$ Agent B Worktree Adaptation $\rightarrow$ Pytest Gate $\rightarrow$ Human Approval $\rightarrow$ Atomic Cutover $\rightarrow$ Cryptographic Receipt):
+On Linux/macOS:
 
 ```bash
-python scripts/run_demo.py
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e '.[dev]'
 ```
 
-The scripted command is the offline demonstration path. It intentionally uses
-the local simulation adapter and may inject a synthetic changefeed event. The
-live harness path is explicit and never enables demo mode:
+### Configure live-mode secrets
 
-```powershell
-$env:IS_DEMO_MODE="false"
-$env:DEMO_AUTO_RECONCILE="false"
-$env:CODECLAIM_BASE_URL="https://your-coordinator.example"
-$env:COORDINATOR_API_KEY="<operator-secret>"
-$env:BILLING_HARNESS_ID="<billing-harness-id>"
-$env:BILLING_HARNESS_TOKEN="<billing-one-time-token>"
-$env:ORDERS_HARNESS_ID="<orders-harness-id>"
-$env:ORDERS_HARNESS_TOKEN="<orders-one-time-token>"
-# For the checked-in Billing demo service, run the deployed v2 process.
-$env:BILLING_CONTRACT_REVISION="v2"
-$env:ORDERS_WORKTREE_PATH="C:\worktrees\orders-live"
-python scripts/live_harness_scenario.py --manual
-```
-
-The complete live setup, harness registration, token rotation, changefeed,
-Antigravity, and Codex integration runbook is in
-[`LIVE_TESTING.md`](LIVE_TESTING.md). Fresh harness identities can be created
-without running the scenario by using:
-
-```powershell
-python scripts/live_harness_scenario.py --register-only
-```
-
-Before any live workflow writes, run the read-only baseline guard:
-
-```powershell
-python scripts/live_preflight.py --public-base-url https://<ngrok-host>
-```
-
-The live script uses only coordinator REST operations: it registers/uses two
-harnesses, creates and completes the historical Orders task, publishes Billing
-revision 2, claims the late compatibility work, records evidence, proves that
-provider deployment is rejected before approval, atomically rebinds the
-dependency on approval, and retries deployment. With `--manual`, a real Codex
-or Antigravity session performs the Orders edit between the claim and evidence
-steps. Set `CODECLAIM_REGISTER_HARNESSES=true` instead of supplying harness
-IDs/tokens when registering fresh harnesses; the returned tokens are shown once.
-
-### Output Preview:
-```text
-================================================================================
-🚀 CodeClaim: CockroachDB Semantic Outbox × Multi-Agent Code Repair Demo
-================================================================================
-
-▶ [Step 1/7] Initializing Baseline Microservice Mesh...
-[INFO] Billing-Service base commit: 3f9a12c4
-[INFO] Orders-Service base commit:  8b1c90ef
-[INFO] Current Reload Version:       v1
-
-▶ [Step 2/7] Publishing Billing-Service v2 (Atomic Transactional Outbox)...
-[INFO] Contract v2 Published! Revision: 2 | Status: PUBLISHED | Outbox Event ID: evt-48f1...
-
-▶ [Step 3/7] Processing CDC Changefeed Stream & Detecting Breaking Drift...
-[INFO] CDC Events Processed: 1 | Succeeded: 1 | Failed: 0
-
-▶ [Step 4/7] Launching Agent B (Orders Consumer) in Isolated Worktree...
-[INFO] Agent Task ID: task-90ab... | Status: AWAITING_APPROVAL
-[INFO] Worktree Path: worktrees/task-orders-checkout-90ab
-[INFO] Pytest Verification Evidence: Returncode 0 | All Passed: True
-
-▶ [Step 5/7] Human Operator Review & Sign-off on Reconciled Plan...
-[INFO] Human Approval Applied! Task task-90ab... transitioned to RECONCILED (Plan Rev: 2)
-
-▶ [Step 6/7] Executing Atomic Cutover & Supervised Deployment Promotion...
-[INFO] Deployment Cutover Complete! Status: HEALTHY | Reload Version: v1 -> v2
-
-▶ [Step 7/7] Generating & Archiving Cryptographic Audit Receipt...
-[INFO] Audit Receipt Generated! ID: rcpt-12ef84a92bc1
-[INFO] SHA-256 Integrity Hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-[INFO] Local Receipt Path:      receipts/rcpt-12ef84a92bc1.json
-
-================================================================================
-🎉 DEMONSTRATION SUCCESSFUL: All 7 lifecycle phases executed cleanly!
-================================================================================
-```
-
----
-
-## 🖥️ React Control Mesh Dashboard UI
-
-The dashboard is now a React/Vite application using source-owned shadcn-compatible
-primitives, with the 7Ovr registry configured in `frontend/components.json` for
-future block installation. FastAPI remains the same-origin host and CockroachDB
-remains the only coordination source of truth.
-
-Build the frontend after installing Python dependencies:
-
-```powershell
-cd frontend
-npm install
-npm run build
-cd ..
-```
-
-The production bundle is emitted to `coordinator/static/dashboard/` and is served
-at `http://localhost:8000/control` and `http://localhost:8000/`.
-
-For frontend-only development, run Vite in one terminal and the coordinator in another:
-
-```powershell
-cd frontend
-npm run dev
-```
-
-Then open `http://localhost:3000`. Vite proxies coordinator APIs to port 8000.
-
-Launch the coordinator to access the interactive dashboard:
-
-**Windows (PowerShell):** use the project launcher so Psycopg runs on a
-selector event loop. Psycopg's async driver cannot run on Windows'
-default Proactor event loop.
-
-```powershell
-.\.venv\Scripts\python.exe scripts\start_server.py
-```
-
-**Linux/macOS:**
-
-```bash
-uvicorn coordinator.app:app --host 0.0.0.0 --port 8000 --reload
-```
-
-If a Windows server is started with the `uvicorn` console command directly,
-startup can fail with `Psycopg cannot use the 'ProactorEventLoop'` and the
-dashboard will report the coordinator as unavailable. The launcher creates
-the compatible selector loop before Uvicorn starts.
-
-Navigate to **`http://localhost:8000/control`** or **`http://localhost:8000/`** to interact with:
-- **Panel 1 (Left)**: Registered microservice hierarchy, Contract Publication Timeline, and Semantic Vector Explorer.
-- **Panel 2 (Center)**: In-flight multi-agent tasks, Compatibility Work state machine, and Structured Blocked Incidents with **Approve/Reject** human sign-off modals.
-- **Panel 3 (Right)**: Real-time transactional outbox timeline, visual breaking diff viewer, Cross-Service Audit Lineage, and deployment ledger.
-
----
-
-## 🌐 Hosting & Deployment Topology
-
-The dashboard is hosted directly by the same **CodeClaim Coordinator** deployment on AWS:
-- **Unified FastAPI Deployment**: FastAPI serves both the coordinator REST APIs / background workers and the dashboard HTML / static assets (`/static`, `/`, `/control`).
-- **Same-Origin Access**: The dashboard communicates exclusively through same-origin relative paths (e.g. `/api/dashboard/state`, `/deploy/version`), eliminating the need for a separate frontend server or CORS exposure.
-- **Background Worker Co-location**: The real-time drift worker, compatibility dispatcher, and Slack notifier run as supervised background tasks within the single coordinator process lifecycle.
-- **External Source of Truth**: **CockroachDB Cloud** remains the authoritative external transactional memory plane.
-- **Reverse Proxy Protection**: The coordinator is exposed through an HTTPS reverse proxy (Nginx or AWS Application Load Balancer); the internal FastAPI Uvicorn port (`8000`) is kept private on loopback.
-
-```text
-https://codeclaim.example.com
-          |
-          v
-AWS EC2 / container
-  ├─ HTTPS reverse proxy (Nginx / ALB on port 443)
-  └─ FastAPI CodeClaim coordinator (127.0.0.1:8000)
-      ├─ React dashboard bundle (served from /static/dashboard)
-      ├─ coordinator APIs (/api/dashboard/state, /tasks, /deploy, etc.)
-      ├─ drift worker (supervised background task)
-      ├─ compatibility dispatcher (supervised background task)
-      └─ Slack notifier (supervised background task)
-          |
-          v
-CockroachDB Cloud
-```
-
-Nginx reverse proxy configuration template is available in [`infra/nginx.conf`](infra/nginx.conf), and the unified containerfile is in [`infra/Dockerfile`](infra/Dockerfile).
-
----
-
-## 🛡️ Managed CockroachDB MCP Audit Setup
-
-To connect Claude Code or Cursor to the cluster-scoped read-only audit plane:
-
-1. Follow the runbook in [`infra/skills/cockroach_mcp_audit.md`](infra/skills/cockroach_mcp_audit.md).
-2. Configure MCP server connection string:
-   ```json
-   {
-     "mcpServers": {
-       "cockroach-codeclaim-audit": {
-         "command": "npx",
-         "args": [
-           "-y",
-           "@cockroachdb/mcp-server",
-           "--connection-string",
-           "postgresql://mcp_audit_agent:<MCP_AUDIT_PASSWORD>@codeclaim-prod.cockroachlabs.cloud:26257/codeclaim_db?sslmode=verify-full"
-         ]
-       }
-     }
-   }
-   ```
-3. Ask your AI assistant:
-   > *"Show all Billing-Service contract revisions that caused Orders-Service to re-plan today."*
-
-## 🔌 Connecting a Coding Harness
-
-There are two MCP surfaces with deliberately different authority:
-
-- **CockroachDB Managed MCP:** read-only audit and lineage inspection.
-- **CodeClaim MCP:** trusted local coordination tools for a coding harness. It does not expose direct database writes.
-
-For an HTTPS-based harness integration, an operator first registers the service owner at `POST /harnesses/register`. Store the returned one-time harness token in that runner's secret store. The runner calls `POST /harnesses/{harness_id}/compatibility-work/claim`, works in its own isolated worktree, then sends passing test evidence to the result endpoint. Webhook registration is optional; polling is the safe default.
-
-The local CodeClaim MCP server is a trusted stdio process that authenticates
-one harness from `MCP_HARNESS_ID` and `MCP_HARNESS_TOKEN` and connects directly
-to CockroachDB. It is not a proxy for `CODECLAIM_BASE_URL`; use the REST
-surface when agent machines must not receive database credentials. Generated
-MCP configurations are redacted by default and should be stored outside the
-repository.
-
-To use Cohere Embed v4 through Bedrock Runtime, set:
+Create a local, untracked `.env` or set environment variables in the service
+manager. Never paste real values into this README, a committed JSON file, or a
+screen recording.
 
 ```dotenv
-BEDROCK_EMBEDDING_PROVIDER="cohere_v4"
-BEDROCK_EMBEDDING_MODEL_ID="cohere.embed-v4:0"
+COCKROACH_DATABASE_URL="postgresql://<user>:<password>@<cluster-host>:26257/codeclaim_db?sslmode=verify-full"
+CHANGEFEED_WEBHOOK_SECRET="<long-random-webhook-secret>"
+COORDINATOR_API_KEY="<long-random-operator-secret>"
+IS_DEMO_MODE=false
+DEMO_AUTO_RECONCILE=false
+
+# Optional semantic discovery
+AWS_REGION=ap-southeast-1
+BEDROCK_EMBEDDING_PROVIDER=cohere_v4
+BEDROCK_EMBEDDING_MODEL_ID=cohere.embed-v4:0
 EMBEDDING_DIMENSION=1536
 ```
 
-### Endpoint retirement is explicit
-
-CodeClaim never infers that a removed endpoint is harmless. A provider harness must publish an inventory for each source commit and must retire a known endpoint deliberately through `retire_endpoint` (MCP) or `POST /contracts/retire`. Retirement appends an immutable tombstone revision, records the migration note and optional replacement, then emits `ENDPOINT_RETIRED` through the transactional outbox.
-
-If an active contract is absent from the commit inventory and has no tombstone, `POST /contracts/inventory` emits `ENDPOINT_RETIREMENT_REVIEW_REQUIRED`. The drift worker creates review-required compatibility work and re-plans even agents that currently depend on the latest known revision. It does not automatically retire the endpoint: a human or provider harness must make that decision explicitly.
-
-### Onboard an internal FastAPI service
-
-`codeclaim onboard` supports Python FastAPI services only. It imports the configured FastAPI application to obtain its generated OpenAPI document, or reads `/openapi.json` from a loopback service. It prints the normalized HTTP contract plan and any dynamic route/header findings before doing anything. Without confirmation, it makes no database or filesystem changes.
+Outside demo mode, the coordinator fails closed if the database URL or operator
+key is missing. On startup it applies pending migrations through `init_db()`.
+Verify the database before starting the server:
 
 ```powershell
-codeclaim onboard --service-name billing-service `
-  --repository-path C:\work\billing-service `
-  --endpoint-code-dir app\api `
-  --app-entry app.main:app
+$env:PYTHONPATH = (Get-Location).Path
+\.venv\Scripts\python.exe -c "import asyncio, selectors; from coordinator.db import check_health, close_pool; loop=asyncio.SelectorEventLoop(selectors.SelectSelector()); print(loop.run_until_complete(check_health())); loop.run_until_complete(close_pool()); loop.close()"
 ```
 
-For automation, pass `--yes`; the plan is still printed. After approval, the command registers the service, publishes revision 1 for each OpenAPI operation, writes only `.codeclaim/service.json`, and appends onboarding audit/outbox events. It never edits application source code.
-
-### Confirm internal HTTP dependencies
-
-Use `codeclaim dependencies` on a consumer repository to review literal Python HTTP client calls. The command shows the consumer, possible provider, source-file evidence, confidence, and exact provider-operation candidates. Choose **confirm**, **ignore**, or **edit** for each suggestion.
+### Build and serve the React dashboard
 
 ```powershell
-codeclaim dependencies --consumer-service orders-service `
-  --repository-path C:\work\orders-service `
+Set-Location frontend
+npm install
+npm run build
+Set-Location ..
+```
+
+The build is emitted to `coordinator/static/dashboard/` and served by FastAPI.
+
+### Start the coordinator
+
+Windows PowerShell:
+
+```powershell
+$env:PYTHONPATH = (Get-Location).Path
+\.venv\Scripts\python.exe scripts\start_server.py
+```
+
+The launcher uses an asyncio selector event loop because Psycopg async mode is
+not compatible with Windows' default Proactor loop.
+
+Linux/macOS:
+
+```bash
+export PYTHONPATH="$PWD"
+python scripts/start_server.py
+# or, when a selector-loop launcher is not needed:
+uvicorn coordinator.app:app --host 127.0.0.1 --port 8000
+```
+
+Verify the coordinator and open the dashboard:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health | ConvertTo-Json -Depth 10
+Start-Process http://127.0.0.1:8000/control
+```
+
+Expected live health includes `status: healthy`, `coordinator: healthy`, and a
+healthy CockroachDB result. `demo_mode` should be `false` for the real workflow.
+
+### Run tests
+
+```powershell
+$env:PYTHONPATH = (Get-Location).Path
+\.venv\Scripts\pytest -q
+```
+
+The Orders and Billing fixture tests can be run independently:
+
+```powershell
+\.venv\Scripts\python.exe -m pytest repos\billing-service\tests -q
+\.venv\Scripts\python.exe -m pytest repos\orders-service\tests -q
+```
+
+## Register services and dependencies
+
+Registration is intentionally explicit in v1. In a production organization,
+these commands belong in CI; the resulting contract and audit records remain in
+CockroachDB.
+
+### Onboard a FastAPI service
+
+`codeclaim onboard` supports Python FastAPI only. It imports the configured
+application entry point to obtain `app.openapi()`, or can read `/openapi.json`
+from a locally running service. It prints the normalized plan, flags unresolved
+dynamic behavior as `REVIEW_REQUIRED`, and asks for confirmation before writing.
+
+```powershell
+\.venv\Scripts\python.exe -m coordinator.cli onboard `
+  --service-name billing-service `
+  --repository-path .\repos\billing-service `
+  --endpoint-code-dir . `
+  --app-entry main:app
+
+\.venv\Scripts\python.exe -m coordinator.cli onboard `
+  --service-name orders-service `
+  --repository-path .\repos\orders-service `
+  --endpoint-code-dir . `
+  --app-entry main:app
+```
+
+Use `--yes` for CI after reviewing the printed plan. The command writes only
+`.codeclaim/service.json` in the service repository and writes service,
+contract, audit, and outbox records to CockroachDB. It never edits application
+source code.
+
+### Confirm the exact consumer dependency
+
+For the demo, confirm that Orders consumes Billing's exact operation:
+
+```powershell
+\.venv\Scripts\python.exe -m coordinator.cli dependencies `
+  --consumer-service orders-service `
+  --repository-path .\repos\orders-service `
   --endpoint-code-dir clients `
   --provider-service billing-service `
   --confirmed-by orders-owner
 ```
 
-Only an explicit confirmation persists a dependency. A confirmed record binds one consumer to one provider contract ID, method/path, and assumed revision. Similarity search can surface candidates but never registers a dependency or decides compatibility.
+The CLI may suggest candidates from explicit Python HTTP client calls. Ambiguous
+matches require a human action. Only a confirmed record becomes coordination
+truth; the dependency is not automatically rebound just because a newer
+provider revision exists.
 
----
+## Live provider-to-consumer demonstration
 
-## 📜 License
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+The complete operational runbook, including harness registration, ngrok,
+CockroachDB changefeed setup, Antigravity, and Codex, is in
+[`LIVE_TESTING.md`](LIVE_TESTING.md). The concise flow is:
+
+1. Start the coordinator in live mode and verify `/health`.
+2. Ensure Billing and Orders are registered and the Orders dependency is
+   confirmed against Billing revision 1.
+3. Register one harness for Billing/Antigravity and one for Orders/Codex. The
+   one-time tokens belong in the harness secret store, not in Git.
+4. Configure the CockroachDB changefeed to POST `coordinator_outbox` events to
+   the public coordinator endpoint `POST /events/cockroach`.
+5. In Antigravity, add the required `token_id` field to Billing's
+   `POST /v1/charges`, run its tests, and publish the normalized revision 2.
+6. Confirm in the dashboard and database that the breaking diff and one Orders
+   compatibility work item were created.
+7. In Codex, claim the work, call the checkpoint tools, read the updated Billing
+   contract, update Orders to pass its existing global `TOKEN_ID`, run tests,
+   and submit sanitized compatibility evidence.
+8. Review the resulting `AWAITING_APPROVAL` state and approve or reject using an
+   authenticated operator action if promotion is part of the demo.
+9. Show the dashboard's contract diff, grouped compatibility obligation,
+   checkpoints, audit lineage, and outbox event.
+
+The offline command below is a separate deterministic simulation. It is useful
+for local regression testing but does not prove that an external Antigravity or
+Codex session completed the live workflow:
+
+```powershell
+\.venv\Scripts\python.exe scripts\run_demo.py
+```
+
+Before a real run, use the read-only guard:
+
+```powershell
+\.venv\Scripts\python.exe scripts\live_preflight.py `
+  --public-base-url https://<public-coordinator-host>
+```
+
+## CockroachDB changefeed and ngrok
+
+The coordinator consumes CockroachDB's transactional outbox through a webhook
+changefeed. Use [`infra/cockroach/changefeed.sql`](infra/cockroach/changefeed.sql)
+as the template and substitute the current public host and webhook secret. Run
+`CREATE CHANGEFEED` with a CockroachDB SQL client that is allowed to create jobs;
+some Cloud SQL Console contexts reject job statements with `disallowed
+statement type`.
+
+Do not use the old `infra/ccloud/provision_changefeed.sql` option
+`protect_data_from_gc_on_sink_failure` with clusters that reject it. The generic
+`infra/cockroach/changefeed.sql` template is the safer current template.
+
+### Why ngrok is used in the EC2 demo
+
+Ngrok is not part of CodeClaim's coordination model. It is a temporary public
+HTTPS ingress path:
+
+```text
+CockroachDB Cloud changefeed ──HTTPS POST──> ngrok ──> EC2 127.0.0.1:8000
+Browser ───────────────────────HTTPS───────> ngrok ──> EC2 dashboard
+```
+
+The coordinator normally binds to loopback. CockroachDB Cloud is outside the
+EC2 host and cannot call `127.0.0.1`; it needs a reachable HTTPS URL for
+`/events/cockroach`. Ngrok also lets the browser reach the dashboard without
+opening port 8000 to the Internet.
+
+Ngrok is therefore suitable for a hackathon or temporary demonstration. It is
+not required on EC2 when the deployment has a stable HTTPS domain through an
+Application Load Balancer, ACM certificate, or an Nginx/Let's Encrypt reverse
+proxy. That is the recommended production posture. With ngrok, every new URL
+requires the changefeed sink to be recreated or updated; an old URL will produce
+changefeed `404`/offline errors.
+
+When using EC2, run ngrok on the EC2 instance that hosts the coordinator—not on
+the developer laptop—and verify both:
+
+```bash
+curl -fsS https://<ngrok-host>/health
+curl -fsS https://<ngrok-host>/control
+```
+
+The local CodeClaim MCP process is a separate path. It is a trusted stdio
+process used by Antigravity/Codex and connects to CockroachDB with its harness
+identity; ngrok is not needed for those local MCP calls. Never upload local
+`mcp_*.json` files containing tokens or database credentials to EC2.
+
+## Deploy to Amazon EC2
+
+The simplest demo deployment is a single Amazon Linux 2023 EC2 instance with
+the coordinator and React bundle. Keep the database in CockroachDB Cloud.
+
+### 1. Launch the instance in the AWS Console
+
+In **EC2 → Launch instance**:
+
+- Region: the same AWS region used for the demo, for example
+  `ap-southeast-1`.
+- AMI: Amazon Linux 2023.
+- Instance type: `t3.medium` is a reasonable demo starting point.
+- Storage: at least 20 GB gp3.
+- IAM instance profile: attach a role with
+  `AmazonSSMManagedInstanceCore` and a least-privilege Bedrock policy allowing
+  `bedrock:InvokeModel` for the selected embedding model. Add S3 read access
+  only if the instance downloads a private artifact.
+- Security group: do not expose port 8000 publicly. If using ngrok, outbound
+  HTTPS is sufficient. If using an ALB/Nginx, expose only HTTPS 443 and restrict
+  the backend security group to the proxy.
+
+Use AWS Systems Manager Session Manager from the console instead of opening SSH
+for the demo when the instance has the SSM role and network access.
+
+### 2. Upload a sanitized application artifact
+
+Build the frontend locally, then create an archive that excludes credentials,
+MCP configs, virtual environments, Git metadata, and runtime state. Upload it to
+a private S3 bucket and download it from the instance, or transfer it through
+your approved deployment path.
+
+```powershell
+Set-Location C:\Users\dell\Desktop\Projects\code-claim
+Set-Location frontend
+npm install
+npm run build
+Set-Location ..
+
+# Review the archive contents before uploading it.
+# The React production bundle is already under coordinator/static/dashboard.
+# Keep frontend/node_modules and other development-only files out of the artifact.
+Compress-Archive -Path coordinator,scripts,infra,pyproject.toml,README.md,LIVE_TESTING.md `
+  -DestinationPath codeclaim-demo.zip -Force
+```
+
+Do not include `.env`, `mcp_*.json`, `.venv`, `receipts`, `.cutover_journal.json`,
+or database dumps in the artifact.
+
+### 3. Install and configure on EC2
+
+From the Session Manager shell:
+
+```bash
+sudo dnf update -y
+sudo dnf install -y git python3.12 python3.12-pip unzip
+sudo mkdir -p /opt/codeclaim
+sudo unzip -o /tmp/codeclaim-demo.zip -d /opt/codeclaim
+sudo chown -R ec2-user:ec2-user /opt/codeclaim
+
+cd /opt/codeclaim
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e '.[dev]'
+```
+
+Create `/etc/codeclaim.env` with root-only permissions. Inject real values using
+your secret-management process:
+
+```dotenv
+COCKROACH_DATABASE_URL="postgresql://<user>:<password>@<cluster-host>:26257/codeclaim_db?sslmode=verify-full"
+CHANGEFEED_WEBHOOK_SECRET="<long-random-webhook-secret>"
+COORDINATOR_API_KEY="<long-random-operator-secret>"
+AWS_REGION=ap-southeast-1
+BEDROCK_EMBEDDING_PROVIDER=cohere_v4
+BEDROCK_EMBEDDING_MODEL_ID=cohere.embed-v4:0
+EMBEDDING_DIMENSION=1536
+IS_DEMO_MODE=false
+DEMO_AUTO_RECONCILE=false
+COORDINATOR_HOST=127.0.0.1
+COORDINATOR_PORT=8000
+```
+
+```bash
+sudo chmod 600 /etc/codeclaim.env
+sudo chown root:root /etc/codeclaim.env
+```
+
+### 4. Run the coordinator as a service
+
+Create `/etc/systemd/system/codeclaim.service`:
+
+```ini
+[Unit]
+Description=CodeClaim Coordinator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/opt/codeclaim
+EnvironmentFile=/etc/codeclaim.env
+Environment=PYTHONPATH=/opt/codeclaim
+ExecStart=/opt/codeclaim/.venv/bin/python /opt/codeclaim/scripts/start_server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable it and inspect logs:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now codeclaim
+sudo systemctl status codeclaim
+curl -fsS http://127.0.0.1:8000/health
+```
+
+### 5. Choose ingress
+
+For the hackathon demo, install and run ngrok on EC2:
+
+```bash
+ngrok http 8000
+```
+
+Set the changefeed sink to:
+
+```text
+webhook-https://<current-ngrok-host>/events/cockroach
+```
+
+Then verify the public health endpoint and run `live_preflight.py` from a
+machine that can reach the URL. For a durable deployment, use
+[`infra/nginx.conf`](infra/nginx.conf) behind a stable DNS name and HTTPS, or
+an AWS Application Load Balancer with an ACM certificate. In either case, keep
+Uvicorn on `127.0.0.1:8000` and do not expose it directly.
+
+## MCP and audit access
+
+CodeClaim has two different MCP concepts:
+
+1. **CodeClaim MCP** is a trusted local stdio server for a coding harness. It
+   authenticates with `MCP_HARNESS_ID` and `MCP_HARNESS_TOKEN` and uses the
+   configured CockroachDB connection. It provides coordination tools such as
+   identity, contract discovery, work claiming, checkpoints, and evidence
+   submission.
+2. **CockroachDB Managed MCP** is a read-only audit surface for engineers using
+   Claude Code or Cursor to inspect CockroachDB views and history.
+
+Register harnesses and generate redacted local configuration templates with:
+
+```powershell
+\.venv\Scripts\python.exe scripts\register_agents.py
+```
+
+The returned harness tokens are shown once. Put them in the local client's
+secret store. Do not commit or upload secret-bearing configs. For REST-based
+harnesses, set `CODECLAIM_BASE_URL` to the coordinator's stable public URL and
+use the operator key only for operator endpoints.
+
+The audit runbook is [`infra/skills/cockroach_mcp_audit.md`](infra/skills/cockroach_mcp_audit.md).
+Slack notifications, if enabled, are delivered asynchronously from the
+transactional outbox and delivery attempts are recorded in CockroachDB.
+
+## Explicit endpoint retirement
+
+CodeClaim does not infer that a missing endpoint is harmless. A provider must
+publish an inventory and deliberately retire an operation through the retirement
+API/MCP tool. Retirement creates an immutable tombstone, records migration notes
+and an optional replacement, and emits an outbox event. If an endpoint disappears
+from an inventory without a tombstone, CodeClaim creates
+`ENDPOINT_RETIREMENT_REVIEW_REQUIRED` work instead of silently declaring it
+removed or safe.
+
+## Further documentation
+
+- [`LIVE_TESTING.md`](LIVE_TESTING.md): complete live Antigravity/Codex runbook.
+- [`infra/cockroach/README.md`](infra/cockroach/README.md): CockroachDB setup notes.
+- [`infra/cockroach/changefeed.sql`](infra/cockroach/changefeed.sql): webhook
+  changefeed template.
+- [`infra/nginx.conf`](infra/nginx.conf): stable HTTPS reverse-proxy template.
+- [`infra/skills/cockroach_mcp_audit.md`](infra/skills/cockroach_mcp_audit.md):
+  managed MCP audit setup.
+- [Amazon Linux 2023 on EC2](https://docs.aws.amazon.com/linux/al2023/ug/ec2.html)
+- [Attach an IAM role to an EC2 instance](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/attach-iam-role.html)
+- [Connect with Session Manager](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-with-systems-manager-session-manager.html)
+- [Amazon Bedrock model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for
+details.
