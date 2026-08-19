@@ -229,7 +229,13 @@ function App() {
   });
 
   const searchMutation = useMutation({
-    mutationFn: (query) => operatorPost("/api/semantic-search", { query, top_k: 5 }),
+    mutationFn: (query) => displayData.public_demo_enabled
+      ? fetchJson("/api/semantic-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, top_k: 5 }),
+      })
+      : operatorPost("/api/semantic-search", { query, top_k: 5 }),
     onSuccess: (result) => {
       setSearchResults(result.results || []);
       setSearchMessage(result.simulated ? "Demo-mode results — not coordination truth." : `${result.count || 0} semantic matches from CockroachDB.`);

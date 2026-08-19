@@ -116,6 +116,32 @@ describe("CodeClaim React dashboard", () => {
     expect(agentRunsAttempts).toBe(2);
   });
 
+  it("uses the explicit public demo read path without requesting operator credentials", async () => {
+    const fetchMock = vi.fn().mockImplementation((url, options = {}) => {
+      if (String(url).includes("/api/agent-runs")) {
+        expect(options.headers || {}).not.toHaveProperty("X-Operator-Token");
+        return Promise.resolve(new Response(JSON.stringify({ obligations: [], count: 0 }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ...healthyState, public_demo_enabled: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderDashboard();
+    await screen.findByText("CockroachDB Connected");
+    fireEvent.click(screen.getByRole("button", { name: /Agent runs/i }));
+
+    expect(await screen.findByRole("heading", { name: "Agent runs" })).toBeInTheDocument();
+    expect(await screen.findByText("No compatibility obligations match this time window.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Operator authentication" })).not.toBeInTheDocument();
+    expect(window.prompt).not.toHaveBeenCalled();
+  });
+
   it("launches the opt-in public demo without an operator-token prompt", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       ...healthyState,

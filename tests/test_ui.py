@@ -407,6 +407,60 @@ async def test_public_demo_is_bounded_and_does_not_require_operator_token():
 
 
 @pytest.mark.asyncio
+async def test_public_demo_read_routes_are_redacted_and_do_not_need_operator_auth():
+    """Public demo pages are read-only projections; operator authority remains server-side."""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        with patch.object(settings, "public_demo_enabled", True):
+            with patch("coordinator.app.execute_query", AsyncMock(return_value=[])):
+                response = await client.get("/api/agent-runs")
+                assert response.status_code == 200
+                assert response.json() == {"obligations": [], "count": 0}
+
+            public_diff = [{
+                "drift_id": "drift-public",
+                "source_service": "billing-service",
+                "target_service": "orders-service",
+                "old_contract_revision": 1,
+                "new_contract_revision": 2,
+                "breaking_diff": {"breaking_changes": [{"field": "token_id"}]},
+                "source_event_payload": {
+                    "endpoint_path": "/v1/charges",
+                    "operator_token": "must-not-leave-server",
+                },
+            }]
+            with patch("coordinator.app.execute_query", AsyncMock(return_value=public_diff)):
+                response = await client.get("/api/contract-diffs")
+                assert response.status_code == 200
+                body = response.json()
+                assert body["diffs"][0]["breaking_diff"]["breaking_changes"][0]["field"] == "token_id"
+                assert "operator_token" not in body["diffs"][0]["source_event_payload"]
+
+            public_audit = [{
+                "history_id": "audit-public",
+                "event_type": "CONTRACT_PUBLISHED",
+                "summary": "Billing contract published",
+                "payload": {"operator_token": "must-not-leave-server"},
+            }]
+            public_outbox = [{
+                "event_id": "event-public",
+                "event_type": "CONTRACT_PUBLISHED",
+                "payload": {"summary": "Billing contract published", "secret": "must-not-leave-server"},
+            }]
+            with patch("coordinator.app.execute_query", AsyncMock(side_effect=[public_audit, public_outbox])):
+                response = await client.get("/api/audit-trail")
+                assert response.status_code == 200
+                body = response.json()
+                assert body["audit_count"] == 1
+                assert "secret" not in body["outbox"][0]["payload"]
+
+            with patch("coordinator.app.search_candidate_contracts", AsyncMock(return_value=[{"service_name": "billing-service"}])):
+                response = await client.post("/api/semantic-search", json={"query": "charges", "top_k": 1})
+                assert response.status_code == 200
+                assert response.json()["count"] == 1
+
+
+@pytest.mark.asyncio
 async def test_deploy_read_endpoints_require_auth():
     """Verify /deploy/history and /deploy/services require operator token verification."""
     transport = httpx.ASGITransport(app=app)

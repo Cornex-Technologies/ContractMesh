@@ -461,6 +461,69 @@ def verify_operator_auth(
     )
 
 
+_PUBLIC_DEMO_SENSITIVE_KEYS = {
+    "authorization",
+    "api_key",
+    "apikey",
+    "client_secret",
+    "cookie",
+    "credential",
+    "credentials",
+    "password",
+    "private_key",
+    "secret",
+    "session_token",
+    "stack_trace",
+    "token",
+    "operator_token",
+    "harness_token",
+    "changefeed_token",
+    "webhook_secret",
+}
+
+
+def _public_demo_json(value: Any, *, depth: int = 0) -> Any:
+    """Return a bounded, redacted JSON projection for the public demo.
+
+    The public demo is intentionally read-only.  It may show contract and
+    workflow evidence, but it must never turn the browser into an operator
+    client or leak credentials, prompts, stack traces, or environment data.
+    """
+    if depth > 8:
+        return "[truncated]"
+    if isinstance(value, dict):
+        result: dict[str, Any] = {}
+        for key, item in value.items():
+            normalized_key = str(key).lower().replace("-", "_")
+            if normalized_key in _PUBLIC_DEMO_SENSITIVE_KEYS or any(
+                marker in normalized_key
+                for marker in ("password", "secret", "credential", "private_key", "stack_trace", "scratchpad", "prompt")
+            ):
+                continue
+            result[str(key)] = _public_demo_json(item, depth=depth + 1)
+        return result
+    if isinstance(value, list):
+        return [_public_demo_json(item, depth=depth + 1) for item in value[:100]]
+    if isinstance(value, str) and len(value) > 4000:
+        return f"{value[:4000]}…[truncated]"
+    return value
+
+
+def _public_demo_projection(value: Any) -> Any:
+    """Apply the public projection only when the explicit public demo is enabled."""
+    return _public_demo_json(value) if settings.public_demo_enabled else value
+
+
+def _verify_read_access(
+    authorization: Optional[str],
+    x_operator_token: Optional[str],
+) -> bool:
+    """Allow explicitly enabled public-demo reads while keeping mutations protected."""
+    if settings.public_demo_enabled:
+        return True
+    return verify_operator_auth(authorization, x_operator_token)
+
+
 async def require_harness_auth(harness_id: str, x_harness_token: Optional[str]) -> dict[str, Any]:
     """Authenticate a registered harness without exposing database credentials to it."""
     if not x_harness_token:
@@ -825,7 +888,7 @@ async def get_events_feed(
     x_operator_token: Optional[str] = Header(default=None),
 ) -> dict[str, Any]:
     """Retrieve combined outbox and drift event records."""
-    verify_operator_auth(authorization, x_operator_token)
+    _verify_read_access(authorization, x_operator_token)
     outbox = []
     drift = []
     try:
@@ -842,10 +905,10 @@ async def get_events_feed(
         if not settings.is_demo_mode:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(ex))
 
-    return {
+    return _public_demo_projection({
         "outbox": outbox,
         "drift": drift,
-    }
+    })
 
 
 def _time_window_clauses(
@@ -1089,7 +1152,7 @@ async def get_agent_runs(
     x_operator_token: Optional[str] = Header(default=None),
 ) -> dict[str, Any]:
     """Return every compatibility obligation with its tasks, checkpoints, and causal events."""
-    verify_operator_auth(authorization, x_operator_token)
+    _verify_read_access(authorization, x_operator_token)
     work_window, work_params = _time_window_clauses("w.created_at", from_time, to_time)
     work_items = await execute_query(
         f"""
@@ -1198,7 +1261,7 @@ async def get_agent_runs(
             "events": obligation_events,
         })
 
-    return {"obligations": obligations, "count": len(obligations)}
+    return _public_demo_projection({"obligations": obligations, "count": len(obligations)})
 
 
 @app.get("/api/contract-diffs")
@@ -1209,7 +1272,7 @@ async def get_contract_diffs(
     x_operator_token: Optional[str] = Header(default=None),
 ) -> dict[str, Any]:
     """Return the complete persisted contract-diff/drift history in the selected time window."""
-    verify_operator_auth(authorization, x_operator_token)
+    _verify_read_access(authorization, x_operator_token)
     window, params = _time_window_clauses("d.created_at", from_time, to_time)
     diffs = await execute_query(
         f"""
@@ -1227,7 +1290,7 @@ async def get_contract_diffs(
         """,
         tuple(params),
     )
-    return {"diffs": diffs, "count": len(diffs)}
+    return _public_demo_projection({"diffs": diffs, "count": len(diffs)})
 
 
 @app.get("/api/contract-diffs/{drift_id}")
@@ -1237,7 +1300,7 @@ async def get_contract_diff_details(
     x_operator_token: Optional[str] = Header(default=None),
 ) -> dict[str, Any]:
     """Return the persisted diff, source outbox payload, and linked audit rows."""
-    verify_operator_auth(authorization, x_operator_token)
+    _verify_read_access(authorization, x_operator_token)
     diff = await fetch_one(
         """SELECT d.*, o.event_type AS source_event_type,
                   o.payload AS source_event_payload, o.created_at AS source_event_created_at
@@ -1257,7 +1320,7 @@ async def get_contract_diff_details(
            ORDER BY created_at ASC;""",
         (diff.get("outbox_event_id"),),
     )
-    return {"diff": diff, "audit": audits}
+    return _public_demo_projection({"diff": diff, "audit": audits})
 
 
 @app.get("/api/events/{event_id}")
@@ -1267,7 +1330,7 @@ async def get_event_details(
     x_operator_token: Optional[str] = Header(default=None),
 ) -> dict[str, Any]:
     """Return one transactional outbox JSON payload and its linked lineage."""
-    verify_operator_auth(authorization, x_operator_token)
+    _verify_read_access(authorization, x_operator_token)
     outbox = await fetch_one(
         """SELECT event_id, aggregate_type, aggregate_id, aggregate_revision,
                   source_service, event_type, payload, event_version, created_at
@@ -1294,7 +1357,7 @@ async def get_event_details(
            ORDER BY created_at ASC;""",
         (event_id,),
     )
-    return {"outbox": outbox, "audit": audit, "drift": drift}
+    return _public_demo_projection({"outbox": outbox, "audit": audit, "drift": drift})
 
 
 @app.get("/api/audit-trail")
@@ -1305,7 +1368,7 @@ async def get_audit_trail(
     x_operator_token: Optional[str] = Header(default=None),
 ) -> dict[str, Any]:
     """Return audit and outbox records so the UI can group them by causal correlation."""
-    verify_operator_auth(authorization, x_operator_token)
+    _verify_read_access(authorization, x_operator_token)
     audit_window, audit_params = _time_window_clauses("a.created_at", from_time, to_time)
     outbox_window, outbox_params = _time_window_clauses("o.created_at", from_time, to_time)
     audit = await execute_query(
@@ -1327,7 +1390,7 @@ async def get_audit_trail(
             ORDER BY o.created_at DESC;""",
         tuple(outbox_params),
     )
-    return {"audit": audit, "outbox": outbox, "audit_count": len(audit), "outbox_count": len(outbox)}
+    return _public_demo_projection({"audit": audit, "outbox": outbox, "audit_count": len(audit), "outbox_count": len(outbox)})
 
 
 @app.post("/api/simulate/drift")
@@ -1392,7 +1455,7 @@ async def perform_semantic_search(
     x_operator_token: Optional[str] = Header(default=None),
 ) -> dict[str, Any]:
     """Search candidate contracts using CockroachDB native semantic vector embeddings."""
-    verify_operator_auth(authorization, x_operator_token)
+    _verify_read_access(authorization, x_operator_token)
     try:
         results = await search_candidate_contracts(prompt=req.query, limit=req.top_k)
         if results:
